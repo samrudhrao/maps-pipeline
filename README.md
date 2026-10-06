@@ -138,22 +138,6 @@ Access at http://localhost:8501
 
 ---
 
-## Concordance
-
-Validated on 5 confirmed clinical samples:
-
-| Sample | Specimen | SoC | MAPS Result |
-|---|---|---|---|
-| 151 | Abscess | S. aureus | S. aureus 95.4% HIGH ✓ |
-| T1 | Pleural | S. cohnii | S. cohnii 96.8% HIGH ✓ |
-| 152 | Peritoneal | Citrobacter + P. aeruginosa | Both detected + Candida ✓ |
-| BM | Abscess | Mixed Staph | S. aureus detected ✓ |
-| 47_SYN | Synovial | Negative | No detection ✓ |
-
-**100% of SoC organisms detected across all validated samples**
-
----
-
 ## Institution
 
 Baylor Scott & White Health — Temple, TX
