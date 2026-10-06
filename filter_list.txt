@@ -1,0 +1,137 @@
+saccharomyces
+zygotorulaspora
+eremothecium
+homo sapiens
+phix174
+enterobacteria phage
+synthetic construct
+mucor velutinosus
+blautia
+akkermansia
+faecalibacterium
+ruminococcus
+bacteroides
+prevotella
+dialister
+segatella
+allisonella
+mesorhizobium
+cutibacterium acnes
+ewingella
+cellulosimicrobium
+halomonas
+ralstonia
+bradyrhizobium
+ottowia
+bordetella trematum
+pelagibacterium
+lysobacter
+stenotrophomonas maltophilia
+colletotrichum
+botrytis
+remersonia
+malassezia
+aspergillus fijiensis
+aspergillus campestris
+vanrija
+fusarium flagelliforme
+lawsonella
+maribellus
+microvirgula
+solobacterium
+phascolarctobacterium
+cloacibacillus
+collinsella
+enterocloster
+mediterraneibacter
+campylobacter gracilis
+parvimonas
+aggregatibacter
+aspergillus puulaauensis
+aspergillus heteromorphus
+fusarium subglutinans
+lodderomyces
+trichoderma
+mesorhizobium terrae
+clostridioides difficile
+listeria monocytogenes
+aerococcus
+bacillus sp.
+penicillium digitatum
+aequoribacter
+salmonella enterica
+spiribacter
+ketobacter
+vibrio paracholerae
+pseudomonas syringae
+candidatus erwinia
+escherichia marmotae
+acinetobacter baumannii
+serratia symbiotica
+klebsiella quasipneumoniae
+staphylococcus pseudintermedius
+staphylococcus hominis
+priestia megaterium
+metabacillus litoralis
+staphylococcus haemolyticus
+staphylococcus lugdunensis
+staphylococcus simulans
+staphylococcus pasteuri
+staphylococcus argenteus
+erwinia pyrifoliae
+enterobacter ludwigii
+shigella dysenteriae
+ascochyta
+thermothelomyces
+aspergillus sclerotioniger
+aspergillus mulundensis
+puccinia
+fusarium tjaetaba
+caldisphaera
+turicimonas
+salipiger
+prescottella
+fusobacterium necrophorum
+selenomonas
+megasphaera
+pyramidobacter
+nitratidesulfovibrio
+methylorubrum
+campylobacter ureolyticus
+sodalis endosymbiont
+andreesenella acetica
+lancefieldella rimae
+staphylococcus caprae
+clostridium intestinale
+anaerocolumna
+anaerotignum
+clostridium gelidum
+clostridium sp.
+paenibacillus guangzhouensis
+lacrimispora xylanolytica
+comamonas terrigena
+schlegelella aquatica
+rheinheimera
+delftia acidovorans
+paenibacillus barcinonensis
+acinetobacter indicus
+citrobacter enshiensis
+paenibacillus guangzhouensis
+lacrimispora xylanolytica
+comamonas terrigena
+schlegelella aquatica
+rheinheimera
+delftia acidovorans
+paenibacillus barcinonensis
+acinetobacter indicus
+citrobacter enshiensis
+lactobacillus delbrueckii
+enterobacter kobei
+pseudomonas chlororaphis
+paenibacillus andongensis
+lysinibacillus
+pelosinus
+roseburia hominis
+candidatus annandia
+sedimentibacter
+serratia odorifera

@@ -1,0 +1,37 @@
+# Kraken2 databases — too large for GitHub
+kraken2_db/
+kraken2_db_extra/
+kraken2_db_fungal_refseq/
+kraken2_db_viral/
+
+# Sample data — patient data stays local
+clearlabs_samples/
+rmid_samples/
+pacbio_samples/
+
+# Pipeline outputs — results stay local
+final_pipeline_out/
+
+# Logs
+streamlit.log
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Database file — stays local
+maps_results.db
+
+# Temp files
+*.tmp
+*.bam
+*.fastq
+*.fastq.gz
+*.fq.gz
+
+# MLST tool — too large
+mlst-2.23.0/
+
+# Model files — too large for GitHub (use Git LFS or separate storage)
+models/*.pkl
