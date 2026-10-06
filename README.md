@@ -6,7 +6,7 @@ A clinical metagenomics pipeline for pathogen detection from raw NGS sequencing 
 
 ## Overview
 
-MAPS identifies bacterial, fungal, and viral pathogens directly from FASTQ  sequencing files using k-mer classification, de novo genome assembly, AI ensemble scoring, and resistance gene detection. It is designed for clinical use in sterile-site infections where culture may be negative or insufficient.
+MAPS identifies bacterial, fungal, and viral pathogens directly from FASTQ sequencing files using k-mer classification, de novo genome assembly, AI ensemble scoring, and resistance gene detection. It is designed for clinical use in sterile-site infections where culture may be negative or insufficient.
 
 ---
 
@@ -133,6 +133,7 @@ cd maps-pipeline
 **2. Install system dependencies**
 
 The following tools are required. Installation method may vary by system:
+- [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 - [Kraken2](https://github.com/DerrickWood/kraken2)
 - [fastp](https://github.com/OpenGene/fastp)
 - [SPAdes](https://github.com/ablab/spades)
@@ -159,27 +160,6 @@ Custom fungal (26 species), viral and supplemental databases are maintained inte
 ```bash
 bash full_pipeline.sh SAMPLE R1.fastq.gz R2.fastq.gz output/ abscess
 ```
-
----
-
-## Tools & Dependencies
-
-| Tool | Purpose |
-|---|---|
-| [Kraken2](https://github.com/DerrickWood/kraken2) | K-mer based taxonomic classification |
-| [fastp](https://github.com/OpenGene/fastp) | Read trimming and quality filtering |
-| [SPAdes](https://github.com/ablab/spades) | De novo genome assembly |
-| [ABRicate](https://github.com/tseemann/abricate) | AMR and virulence gene detection |
-| [MLST](https://github.com/tseemann/mlst) | Multilocus sequence typing |
-| [MultiQC](https://multiqc.info) | Sequencing run QC summary |
-| [samtools](http://www.htslib.org) | BAM/FASTQ file handling |
-| pandas | Data manipulation |
-| numpy | Numerical computing |
-| scikit-learn | Random Forest model |
-| xgboost | XGBoost ensemble model |
-| shap | AI explainability (SHAP values) |
-| joblib | Model serialization |
-| streamlit | Web interface |
 
 ---
 
