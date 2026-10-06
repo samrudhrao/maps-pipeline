@@ -106,9 +106,9 @@ Confidence tiers:
 | Custom fungal | 1.5GB | 26 clinical fungal species |
 | Supplemental | 14MB | S. cohnii, B. licheniformis |
 | Viral | 619MB | Clinical human viruses |
-| CARD | — | 6,052 AMR resistance genes |
-| ResFinder | — | 3,206 AMR resistance genes |
-| VFDB | — | 4,592 virulence factors |
+| [CARD](https://card.mcmaster.ca) | — | 6,052 AMR resistance genes |
+| [ResFinder](https://cge.food.dtu.dk/services/ResFinder) | — | 3,206 AMR resistance genes |
+| [VFDB](http://www.mgc.ac.cn/VFs) | — | 4,592 virulence factors |
 
 ---
 
