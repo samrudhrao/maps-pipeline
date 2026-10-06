@@ -122,6 +122,46 @@ Access at http://localhost:8501
 
 ---
 
+## Installation
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/samrudhrao/maps-pipeline.git
+cd maps-pipeline
+```
+
+**2. Install system dependencies**
+
+The following tools are required. Installation method may vary by system:
+- [Kraken2](https://github.com/DerrickWood/kraken2)
+- [fastp](https://github.com/OpenGENOME/fastp)
+- [SPAdes](https://github.com/ablab/spades)
+- [ABRicate](https://github.com/tseemann/abricate)
+- [MLST](https://github.com/tseemann/mlst)
+- [MultiQC](https://multiqc.info)
+- [samtools](http://www.htslib.org)
+
+**3. Install Python packages**
+```bash
+pip install pandas numpy scikit-learn xgboost shap joblib streamlit
+```
+
+**4. Download reference databases**
+
+Kraken2 standard database (~7.5GB):
+```bash
+kraken2-build --standard --db kraken2_db --threads 8
+```
+
+Custom fungal (26 species), viral and supplemental databases are maintained internally. Contact the maintainer for access.
+
+**5. Run the pipeline**
+```bash
+bash full_pipeline.sh SAMPLE R1.fastq.gz R2.fastq.gz output/ abscess
+```
+
+---
+
 ## Requirements
 
 **Tools:**
