@@ -499,6 +499,22 @@ python3 -W ignore ~/maps/scripts/maps_stats.py $SAMPLE $OUTDIR $SPECIMEN_TYPE
 echo "  Stats done"
 
 echo ""
+echo "======================================================="
+echo "QC SUMMARY — $SAMPLE"
+echo "======================================================="
+cat $OUTDIR/${SAMPLE}_qc.json | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(f'  Status:          {d.get(\"status\",\"N/A\")}')
+print(f'  Total reads:     {d.get(\"total_reads\",0):,}')
+print(f'  Human DNA:       {d.get(\"human_pct\",0):.1f}%')
+print(f'  Microbial reads: {d.get(\"microbial_reads\",0):,}')
+print(f'  Q30 rate:        {d.get(\"q30_rate\",0):.1f}%')
+print(f'  Duplication:     {d.get(\"duplication_pct\",0):.1f}%')
+print(f'  Insert size:     {d.get(\"insert_size\",0)}bp')
+"
+echo "======================================================="
+echo ""
 echo "================================================"
 echo "MAPS COMPLETE — $SAMPLE"
 echo "================================================"
