@@ -320,9 +320,10 @@ try:
             if _p[3].strip() == "S" and int(_p[1]) >= 50:
                 _name = _p[5].strip().lower()
                 # Only count well-known pathogenic Staphylococcus species
-                KNOWN_STAPH = ['aureus', 'epidermidis', 'lugdunensis', 
+                KNOWN_STAPH = ['aureus', 'epidermidis', 'lugdunensis',
                                'saprophyticus', 'haemolyticus', 'capitis',
-                               'warneri', 'caprae']
+                               'warneri', 'caprae', 'hominis', 'pasteuri',
+                               'pettenkoferi', 'simulans', 'xylosus']
                 if 'staphylococcus' in _name and any(s in _name for s in KNOWN_STAPH):
                     main_staph_reads += int(_p[1])
 except: pass
@@ -416,9 +417,10 @@ try:
             if _p[3].strip() == "S" and int(_p[1]) >= 50:
                 _name = _p[5].strip().lower()
                 # Only count well-known pathogenic Staphylococcus species
-                KNOWN_STAPH = ['aureus', 'epidermidis', 'lugdunensis', 
+                KNOWN_STAPH = ['aureus', 'epidermidis', 'lugdunensis',
                                'saprophyticus', 'haemolyticus', 'capitis',
-                               'warneri', 'caprae']
+                               'warneri', 'caprae', 'hominis', 'pasteuri',
+                               'pettenkoferi', 'simulans', 'xylosus']
                 if 'staphylococcus' in _name and any(s in _name for s in KNOWN_STAPH):
                     main_staph_reads += int(_p[1])
 except: pass

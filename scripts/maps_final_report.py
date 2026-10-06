@@ -85,7 +85,8 @@ supp_raw = parse_report(f"{outdir}/bact_results/{sample}_extra_report.txt")
 
 # Check main DB Staphylococcus read counts
 KNOWN_STAPH = ['aureus', 'epidermidis', 'lugdunensis', 'saprophyticus',
-               'haemolyticus', 'capitis', 'warneri', 'caprae']
+               'haemolyticus', 'capitis', 'warneri', 'caprae',
+               'hominis', 'pasteuri', 'pettenkoferi', 'simulans', 'xylosus']
 main_staph_reads = sum(v[1] for k,v in bact.items()
                        if 'staphylococcus' in k.lower() and
                        any(s in k.lower() for s in KNOWN_STAPH))
