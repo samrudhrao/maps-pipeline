@@ -6,7 +6,7 @@ A clinical metagenomics pipeline for pathogen detection from raw NGS sequencing 
 
 ## Overview
 
-MAPS identifies bacterial, fungal, and viral pathogens directly from FASTQ or BAM sequencing files using k-mer classification, de novo genome assembly, AI ensemble scoring, and resistance gene detection. It is designed for clinical use in sterile-site infections where culture may be negative or insufficient.
+MAPS identifies bacterial, fungal, and viral pathogens directly from FASTQ  sequencing files using k-mer classification, de novo genome assembly, AI ensemble scoring, and resistance gene detection. It is designed for clinical use in sterile-site infections where culture may be negative or insufficient.
 
 ---
 
