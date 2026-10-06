@@ -134,7 +134,7 @@ cd maps-pipeline
 
 The following tools are required. Installation method may vary by system:
 - [Kraken2](https://github.com/DerrickWood/kraken2)
-- [fastp](https://github.com/OpenGENOME/fastp)
+- [fastp](https://github.com/OpenGene/fastp)
 - [SPAdes](https://github.com/ablab/spades)
 - [ABRicate](https://github.com/tseemann/abricate)
 - [MLST](https://github.com/tseemann/mlst)
