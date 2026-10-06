@@ -12,7 +12,7 @@ MAPS identifies bacterial, fungal, and viral pathogens directly from FASTQ or BA
 
 ## Key Features
 
-- **Multi-platform support** — Illumina paired-end, Ion Torrent single-end, PacBio HiFi BAM
+- **Multi-platform support** — Illumina paired-end, Ion Torrent single-end
 - **Automated QC** — hard fail criteria stop the pipeline on poor quality samples
 - **Specimen-type aware scoring** — adjusts pathogen confidence based on biological context
 - **AI ensemble scoring** — Random Forest + XGBoost with SHAP explainability
