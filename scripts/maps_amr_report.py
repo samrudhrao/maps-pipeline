@@ -24,6 +24,20 @@ RESISTANCE_MAP = {
     "bla":    {"drug":"Beta-lactams","significance":"Beta-lactamase"},
     "dfra":   {"drug":"Trimethoprim","significance":"Trimethoprim resistance"},
     "dfr":    {"drug":"Trimethoprim","significance":"Trimethoprim resistance"},
+    "imp":    {"drug":"Carbapenems","significance":"Metallo-beta-lactamase"},
+    "ges":    {"drug":"Carbapenems","significance":"Carbapenemase"},
+    "spm":    {"drug":"Carbapenems","significance":"Metallo-beta-lactamase"},
+    "van":    {"drug":"Vancomycin","significance":"Glycopeptide resistance"},
+    "aph":    {"drug":"Aminoglycosides","significance":"Aminoglycoside resistance"},
+    "ant":    {"drug":"Aminoglycosides","significance":"Aminoglycoside resistance"},
+    "cat":    {"drug":"Chloramphenicol","significance":"Chloramphenicol resistance"},
+    "cml":    {"drug":"Chloramphenicol","significance":"Chloramphenicol resistance"},
+    "qnr":    {"drug":"Fluoroquinolones","significance":"Quinolone resistance"},
+    "gyra":   {"drug":"Fluoroquinolones","significance":"Quinolone resistance"},
+    "pbp":    {"drug":"Beta-lactams","significance":"Penicillin-binding protein alteration"},
+    "lnu":    {"drug":"Lincosamides","significance":"Lincosamide resistance"},
+    "mph":    {"drug":"Macrolides","significance":"Macrolide resistance"},
+    "msr":    {"drug":"Macrolides","significance":"Macrolide resistance"},
     "qnr":    {"drug":"Fluoroquinolones","significance":"Quinolone resistance"},
 }
 
@@ -72,7 +86,7 @@ def get_detected_organisms(outdir, sample):
     return detected
 
 # Critical genes — lower coverage threshold (60%) due to clinical importance
-CRITICAL_GENES = ["meca", "vana", "vanb", "ndm", "kpc", "mcr", "oxa-48", "vim"]
+CRITICAL_GENES = ["meca", "vana", "vanb", "ndm", "kpc", "mcr", "oxa-48", "vim", "imp", "ges", "spm"]
 
 # High risk gene combinations
 HIGH_RISK_COMBOS = [
@@ -82,6 +96,10 @@ HIGH_RISK_COMBOS = [
     (["meca", "vana"],   "CRITICAL — MRSA + VRE genes — multi-drug resistant organism"),
     (["mcr", "ndm"],     "CRITICAL — Colistin + Carbapenem resistance — pan-resistant potential"),
     (["kpc", "vim"],     "CRITICAL — Dual carbapenemase detected — pan-resistant potential"),
+    (["ndm", "vim"],     "CRITICAL — Dual carbapenemase detected — pan-resistant potential"),
+    (["ndm", "imp"],     "CRITICAL — Dual carbapenemase detected — pan-resistant potential"),
+    (["meca", "vanb"],   "CRITICAL — MRSA + VRE genes — multi-drug resistant organism"),
+    (["mcr", "kpc"],     "CRITICAL — Colistin + Carbapenem resistance — pan-resistant potential"),
 ]
 
 def check_high_risk_combos(detected_genes):
