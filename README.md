@@ -162,19 +162,24 @@ bash full_pipeline.sh SAMPLE R1.fastq.gz R2.fastq.gz output/ abscess
 
 ---
 
-## Requirements
+## Tools & Dependencies
 
-**Tools:**
-- Kraken2
-- fastp
-- SPAdes
-- ABRicate
-- MLST
-- MultiQC
-- samtools
-
-**Python packages:**
-- pandas, numpy, scikit-learn, xgboost, shap, joblib, streamlit
+| Tool | Purpose |
+|---|---|
+| [Kraken2](https://github.com/DerrickWood/kraken2) | K-mer based taxonomic classification |
+| [fastp](https://github.com/OpenGene/fastp) | Read trimming and quality filtering |
+| [SPAdes](https://github.com/ablab/spades) | De novo genome assembly |
+| [ABRicate](https://github.com/tseemann/abricate) | AMR and virulence gene detection |
+| [MLST](https://github.com/tseemann/mlst) | Multilocus sequence typing |
+| [MultiQC](https://multiqc.info) | Sequencing run QC summary |
+| [samtools](http://www.htslib.org) | BAM/FASTQ file handling |
+| pandas | Data manipulation |
+| numpy | Numerical computing |
+| scikit-learn | Random Forest model |
+| xgboost | XGBoost ensemble model |
+| shap | AI explainability (SHAP values) |
+| joblib | Model serialization |
+| streamlit | Web interface |
 
 ---
 
