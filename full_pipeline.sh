@@ -377,6 +377,17 @@ echo "  Abundance report done"
 
 echo "DONE: $SAMPLE"
 
+# Step 9b: Coverage breadth (informational flag)
+echo "Step 9b: Coverage breadth analysis..."
+R1_CLEAN=$OUTDIR/human_depleted/${SAMPLE}_clean_1.fastq
+R2_CLEAN=$OUTDIR/human_depleted/${SAMPLE}_clean_2.fastq
+if [ ! -f "$R1_CLEAN" ]; then
+    R1_CLEAN=$OUTDIR/human_depleted/${SAMPLE}_clean.fastq
+    R2_CLEAN=$R1_CLEAN
+fi
+python3 -W ignore ~/maps/scripts/maps_coverage.py $SAMPLE $OUTDIR $R1_CLEAN $R2_CLEAN 2>/dev/null
+echo "  Coverage breadth done"
+
 # Step 10: AI scoring
 echo "Step 10: AI confidence scoring..."
 python3 -W ignore ~/maps/scripts/run_ai_scoring.py $SAMPLE $OUTDIR
