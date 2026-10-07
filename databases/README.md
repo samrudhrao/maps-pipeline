@@ -33,6 +33,6 @@ kraken2-build --build --db kraken2_db_viral --threads 8
 Size: ~619MB
 
 ## Requirements
-- Kraken2
-- NCBI datasets CLI tool
-- Python3 with Biopython
+- [Kraken2](https://github.com/DerrickWood/kraken2)
+- [NCBI Datasets CLI](https://www.ncbi.nlm.nih.gov/datasets/docs/v2/download-and-install/)
+- [Python3](https://www.python.org/downloads/) with [Biopython](https://biopython.org/wiki/Download)
