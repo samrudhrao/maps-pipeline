@@ -142,6 +142,8 @@ The following tools are required. Installation method may vary by system:
 - [MLST](https://github.com/tseemann/mlst)
 - [MultiQC](https://multiqc.info)
 - [samtools](http://www.htslib.org)
+- [Minimap2](https://github.com/lh3/minimap2)
+- [NCBI Datasets CLI](https://www.ncbi.nlm.nih.gov/datasets/docs/v2/download-and-install/)
 
 **3. Install Python packages**
 ```bash
