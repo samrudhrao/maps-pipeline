@@ -308,7 +308,7 @@ supp = parse_report("$OUTDIR/bact_results/${SAMPLE}_extra_report.txt")
 
 # Merge supplemental DB — only S. cohnii and B. licheniformis
 # Skip S. cohnii if main DB already has >500 reads of any other Staphylococcus
-SUPP_KEEP = ["staphylococcus cohnii"]  # Only add S. cohnii from supplemental
+SUPP_KEEP = ["staphylococcus cohnii", "bacillus licheniformis"]
 
 # Read raw Staphylococcus read counts from main DB report
 main_staph_reads = 0
@@ -331,10 +331,16 @@ except: pass
 for org, pct in supp.items():
     if not any(s in org.lower() for s in SUPP_KEEP):
         continue
+    # S. cohnii — skip if main DB already has dominant Staphylococcus
     if 'cohnii' in org.lower() and main_staph_reads > 500:
-        continue  # Main DB has dominant non-cohnii Staph — skip S. cohnii
-    if org not in bact:
-        bact[org] = pct
+        continue
+    # Only add if meaningful signal (>=1%) and not already in main DB
+    # or supplemental has significantly more signal than main DB
+    if pct >= 1.0:
+        if org not in bact:
+            bact[org] = pct
+        elif pct > bact[org] * 2:
+            bact[org] = pct
 
 # Apply specimen-type exclusions
 specimen_type = "$SPECIMEN_TYPE"
@@ -405,7 +411,7 @@ supp = parse_report("$OUTDIR/bact_results/${SAMPLE}_extra_report.txt")
 
 # Merge supplemental DB — only S. cohnii and B. licheniformis
 # Skip S. cohnii if main DB already has >500 reads of any other Staphylococcus
-SUPP_KEEP = ["staphylococcus cohnii"]  # Only add S. cohnii from supplemental
+SUPP_KEEP = ["staphylococcus cohnii", "bacillus licheniformis"]
 
 # Read raw Staphylococcus read counts from main DB report
 main_staph_reads = 0
@@ -428,10 +434,16 @@ except: pass
 for org, pct in supp.items():
     if not any(s in org.lower() for s in SUPP_KEEP):
         continue
+    # S. cohnii — skip if main DB already has dominant Staphylococcus
     if 'cohnii' in org.lower() and main_staph_reads > 500:
-        continue  # Main DB has dominant non-cohnii Staph — skip S. cohnii
-    if org not in bact:
-        bact[org] = pct
+        continue
+    # Only add if meaningful signal (>=1%) and not already in main DB
+    # or supplemental has significantly more signal than main DB
+    if pct >= 1.0:
+        if org not in bact:
+            bact[org] = pct
+        elif pct > bact[org] * 2:
+            bact[org] = pct
 
 # Apply specimen-type exclusions
 specimen_type = "$SPECIMEN_TYPE"
