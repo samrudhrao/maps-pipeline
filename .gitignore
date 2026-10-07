@@ -35,3 +35,4 @@ mlst-2.23.0/
 
 # Model files — too large for GitHub (use Git LFS or separate storage)
 models/*.pkl
+ref_genomes/

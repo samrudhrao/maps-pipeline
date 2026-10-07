@@ -92,13 +92,18 @@ main_staph_reads = sum(v[1] for k,v in bact.items()
                        any(s in k.lower() for s in KNOWN_STAPH))
 
 for org, (pct, reads) in supp_raw.items():
-    if 'cohnii' not in org.lower():
-        continue  # Only S. cohnii from supplemental
-    if main_staph_reads > 500:
-        continue  # Main DB has dominant Staph — skip
-    if "staphylococcus" in org.lower():
-        if org not in bact or bact[org][1] < reads:
-            bact[org] = (pct, reads)
+    # Only process S. cohnii and B. licheniformis from supplemental
+    if 'cohnii' not in org.lower() and 'licheniformis' not in org.lower():
+        continue
+    # Skip if below meaningful signal threshold
+    if pct < 1.0:
+        continue
+    # S. cohnii — skip if main DB already has dominant Staphylococcus
+    if 'cohnii' in org.lower() and main_staph_reads > 500:
+        continue
+    # Add to bact if not present or supplemental has more signal
+    if org not in bact or bact[org][1] < reads:
+        bact[org] = (pct, reads)
 
 human_report = f"{outdir}/human_depleted/{sample}_human_report.txt"
 human_pct = 20.0
