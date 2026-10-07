@@ -38,6 +38,13 @@ def save_result(sample, outdir, soc_result=None, soc_match=None):
         summary = json.load(f)
     conn = sqlite3.connect(DB_PATH)
     c    = conn.cursor()
+
+    # Preserve existing SoC data when rerunning a sample
+    c.execute("SELECT soc_result, soc_match FROM results WHERE sample=?", (sample,))
+    existing = c.fetchone()
+    preserved_soc    = existing[0] if existing and existing[0] not in (None, "Unknown") else soc_result or "Unknown"
+    preserved_match  = existing[1] if existing and existing[1] not in (None, "Unknown") else soc_match or "Unknown"
+
     c.execute("DELETE FROM results WHERE sample=?", (sample,))
     c.execute('''INSERT INTO results
         (sample, run_date, quality_flag, human_pct, microbial_reads,
@@ -53,8 +60,8 @@ def save_result(sample, outdir, soc_result=None, soc_match=None):
         summary.get("top_organism","None"),
         summary.get("top_ai_score",0),
         summary.get("organisms_above_3pct",0),
-        soc_result or "Unknown",
-        soc_match or "Unknown",
+        preserved_soc,
+        preserved_match,
         summary.get("clinical_summary",""),
         datetime.now().strftime("%Y-%m-%d %H:%M"),
     ))
