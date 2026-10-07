@@ -1,0 +1,12 @@
+# MAPS Custom Fungal Database — 26 Clinical Species
+# Taxid    Accession                  Species
+4909       GCA_982397425.1            Candida albicans
+498019     GCA_041381755.1            Candida tropicalis
+5478       GCA_041121715.1            Nakaseomyces glabratus (C. glabrata)
+5480       GCA_060079935.1            Pichia kudriavzevii (C. krusei)
+5599       GCA_060658265.1            Lodderomyces parapsilosis (C. parapsilosis)
+33178      GCA_988135485.1            Candida auris
+84022      GCF_001042715.1            Aspergillus fumigatus
+936053     GCA_054127015.1            Aspergillus niger
+# Additional species downloaded via maps_genome_fetch.py
+# Run build_fungal_db.sh to recreate the full database

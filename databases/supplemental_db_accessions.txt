@@ -1,0 +1,9 @@
+# MAPS Supplemental Database
+# Contains organisms poorly represented in standard Kraken2 database
+# Taxid    Accession                  Species
+29382      GCA_060225365.1            Staphylococcus cohnii
+29382      GCA_060226205.1            Staphylococcus cohnii
+29382      GCF_049943095.1            Staphylococcus cohnii
+1402       GCA_055397075.1            Bacillus licheniformis
+1402       GCF_052142905.1            Bacillus licheniformis
+1402       GCF_977007745.1            Bacillus licheniformis
