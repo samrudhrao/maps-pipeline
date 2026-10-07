@@ -41,6 +41,7 @@ MAPS identifies bacterial, fungal, and viral pathogens directly from FASTQ seque
 | 8 | ABRicate (VFDB) | Virulence gene detection |
 | 8b | ABRicate (CARD + ResFinder) | AMR resistance gene detection |
 | 9 | Python | Abundance report |
+| 9b | Minimap2 + samtools | Genome coverage breadth (informational flag) |
 | 10 | run_ai_scoring.py | AI confidence scoring |
 | 11 | Python | Co-infection detection |
 | 12 | MultiQC | Run summary |
