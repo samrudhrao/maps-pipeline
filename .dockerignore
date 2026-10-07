@@ -1,0 +1,31 @@
+# Databases — mounted at runtime
+kraken2_db/
+kraken2_db_extra/
+kraken2_db_fungal_refseq/
+kraken2_db_viral/
+
+# Sample data — never in container
+clearlabs_samples/
+rmid_samples/
+pacbio_samples/
+final_pipeline_out/
+
+# Local files
+maps_results.db
+streamlit.log
+*.log
+__pycache__/
+*.pyc
+
+# Git
+.git/
+.gitignore
+
+# Database build files
+databases/
+
+# MLST local install
+mlst-2.23.0/
+
+# Amplicon samples
+amplicon_samples/
