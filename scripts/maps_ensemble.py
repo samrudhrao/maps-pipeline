@@ -115,14 +115,27 @@ def predict_ensemble(sample, outdir, human_pct=20.0):
     fung = parse_report(f"{outdir}/fungi_results/{sample}_fungi_report.txt")
     supp = parse_report(f"{outdir}/bact_results/{sample}_extra_report.txt")
 
-    known_staph = ["staphylococcus aureus","staphylococcus epidermidis",
-                   "staphylococcus lugdunensis","staphylococcus haemolyticus",
-                   "staphylococcus capitis","staphylococcus saprophyticus"]
-    main_known = sum(v[1] for k,v in bact.items()
-                     if any(s in k.lower() for s in known_staph))
-    if main_known < 100:
-        for org,(pct,reads) in supp.items():
-            if "staphylococcus" in org.lower() and org not in bact:
+    # Supplemental DB merge — same logic as full_pipeline.sh
+    # Only S. cohnii and B. licheniformis from supplemental DB
+    SUPP_KEEP = ["staphylococcus cohnii", "bacillus licheniformis"]
+
+    # Check main DB for dominant known pathogenic Staphylococcus
+    KNOWN_STAPH = ['aureus', 'epidermidis', 'lugdunensis', 'saprophyticus',
+                   'haemolyticus', 'capitis', 'warneri', 'caprae',
+                   'hominis', 'pasteuri', 'pettenkoferi', 'simulans']
+    main_staph_reads = sum(v[1] for k,v in bact.items()
+                          if 'staphylococcus' in k.lower()
+                          and any(s in k.lower() for s in KNOWN_STAPH))
+
+    for org, (pct, reads) in supp.items():
+        if not any(s in org.lower() for s in SUPP_KEEP):
+            continue
+        if 'cohnii' in org.lower() and main_staph_reads > 500:
+            continue  # Main DB has dominant known Staph — skip S. cohnii
+        if pct >= 1.0:
+            if org not in bact:
+                bact[org] = (pct, reads)
+            elif pct > bact[org][0] * 2:
                 bact[org] = (pct, reads)
 
     bact_df = pd.Series({k:v[0] for k,v in bact.items()})
