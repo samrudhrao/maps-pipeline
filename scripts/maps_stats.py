@@ -132,8 +132,24 @@ def run_stats(sample, outdir):
                         rows[name] = (pct, reads)
         return rows
 
-    bact = parse_report(f"{outdir}/bact_results/{sample}_bact_report.txt")
-    fung = parse_report(f"{outdir}/fungi_results/{sample}_fungi_report.txt")
+    # Use abundance CSV — already has supplemental DB merged correctly
+    import csv as _csv
+    abundance_path = f"{outdir}/{sample}_abundance.csv"
+    bact = {}
+    fung = {}
+    if os.path.exists(abundance_path):
+        with open(abundance_path) as _f:
+            _reader = _csv.DictReader(_f)
+            for _row in _reader:
+                _org = _row['organism']
+                _pct = float(_row['relative_abundance_%'])
+                if '[BACT]' in _org:
+                    bact[_org.replace('[BACT] ','')] = (_pct, int(_pct * 1000))
+                elif '[FUNG]' in _org:
+                    fung[_org.replace('[FUNG] ','')] = (_pct, int(_pct * 1000))
+    else:
+        bact = parse_report(f"{outdir}/bact_results/{sample}_bact_report.txt")
+        fung = parse_report(f"{outdir}/fungi_results/{sample}_fungi_report.txt")
 
     # Apply specimen-type exclusions
     try:
