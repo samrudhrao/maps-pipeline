@@ -1,3 +1,26 @@
+#!/usr/bin/env python3
+"""
+MAPS Ensemble Prediction - maps_ensemble.py
+Step 14b of the MAPS pipeline — RF + XGBoost weighted ensemble prediction.
+Combines two AI models for more robust pathogen scoring with SHAP explainability.
+
+Model weights: RF 55% + XGBoost 45%
+Composite score = (ensemble probability * 0.40) + (abundance * 0.35) + (pathogen score * 0.25)
+Confidence tiers: HIGH >=70%, MODERATE 40-69%, LOW <40%
+SHAP values explain top 3 feature drivers for each organism prediction.
+
+Supplemental DB logic (same as full_pipeline.sh):
+  - S. cohnii: only added if main DB has <500 reads of known pathogenic Staph
+  - B. licheniformis: always added if >=1% abundance
+
+To retrain models: run the model training script in ~/maps/models/
+Model files: maps_ai_model.pkl (RF), maps_xgb_model.pkl (XGB),
+             maps_shap_explainer.pkl (RF SHAP), maps_xgb_shap_explainer.pkl (XGB SHAP)
+
+Usage: python3 maps_ensemble.py SAMPLE OUTDIR HUMAN_PCT SPECIMEN_TYPE
+Output: OUTDIR/SAMPLE_ensemble_scores.csv
+"""
+
 import pandas as pd
 import sys
 import os
@@ -13,6 +36,9 @@ import joblib
 import os
 import sys
 
+# Load all model files
+# RF and XGB models for ensemble prediction
+# SHAP explainers for feature importance interpretation
 RF_MODEL  = joblib.load(os.path.expanduser("~/maps/models/maps_ai_model.pkl"))
 XGB_MODEL = joblib.load(os.path.expanduser("~/maps/models/maps_xgb_model.pkl"))
 LE        = joblib.load(os.path.expanduser("~/maps/models/maps_label_encoder.pkl"))
@@ -55,6 +81,9 @@ PATHOGEN_SCORES = {
     "staphylococcus epidermidis":0.4,"none":0.0,
 }
 
+# Ensemble weights and abundance threshold
+# RF gets slightly more weight (55%) as it was validated first
+# Change weights here if one model consistently outperforms the other
 RF_WEIGHT=0.55; XGB_WEIGHT=0.45; THRESHOLD=3.0
 
 def get_pathogen_score(org):
@@ -83,11 +112,18 @@ def parse_report(path, min_reads=50):
     return rows
 
 def get_shap_explanation(X_df):
+    """
+    Calculate SHAP feature importance for a single prediction.
+    Averages RF and XGB SHAP values and returns top 3 drivers.
+    Used to explain why the model scored an organism high or low.
+    Returns string like 'abundance(0.789) | above_threshold(0.226)'
+    """
     try:
         rf_vals  = RF_SHAP.shap_values(X_df)
         xgb_vals = XGB_SHAP.shap_values(X_df)
 
-        # RF SHAP returns (1, 11, 2) for binary classification
+        # RF SHAP returns different shapes depending on version
+        # Handle both (1, 11, 2) and flat array formats
         # Take class 1 (positive class) values
         if isinstance(rf_vals, list):
             rf_vals = rf_vals[1]
@@ -96,7 +132,7 @@ def get_shap_explanation(X_df):
         else:
             rf_vals = rf_vals[0]
 
-        # XGB SHAP returns (1, 11) — already flat
+        # XGB SHAP returns (1, 11) shape — flatten to 1D array
         if hasattr(xgb_vals, 'shape') and len(xgb_vals.shape) == 2:
             xgb_vals = xgb_vals[0]
         else:
@@ -111,6 +147,11 @@ def get_shap_explanation(X_df):
         return f"N/A"
 
 def predict_ensemble(sample, outdir, human_pct=20.0):
+    """
+    Run RF + XGBoost ensemble prediction on all detected organisms.
+    Reads from Kraken2 reports and merges supplemental DB results.
+    Returns sorted list of organism prediction dictionaries with SHAP explanations.
+    """
     bact = parse_report(f"{outdir}/bact_results/{sample}_bact_report.txt")
     fung = parse_report(f"{outdir}/fungi_results/{sample}_fungi_report.txt")
     supp = parse_report(f"{outdir}/bact_results/{sample}_extra_report.txt")
@@ -149,6 +190,7 @@ def predict_ensemble(sample, outdir, human_pct=20.0):
     total_reads     = sum(v[1] for v in list(bact.values())) if bact else 100000
     microbial_reads = total_reads * (1 - human_pct/100)
 
+    # Import specimen-type exclusion to filter biologically implausible organisms
     try:
         from maps_specimen_scores import should_exclude
     except:
@@ -173,13 +215,17 @@ def predict_ensemble(sample, outdir, human_pct=20.0):
             is_fungal, stype_enc
         ]], columns=FEATURES)
 
+        # Get probability from each model (class 1 = pathogen)
         rf_prob       = RF_MODEL.predict_proba(X)[0][1]
         xgb_prob      = XGB_MODEL.predict_proba(X)[0][1]
+        # Calculate weighted ensemble probability
         ensemble_prob = (rf_prob * RF_WEIGHT) + (xgb_prob * XGB_WEIGHT)
         composite     = (ensemble_prob * 0.40) + (min(pct/100,1.0) * 0.35) + (ps * 0.25)
         spec_ps       = get_specimen_adjusted_score(ps, org, specimen_type)
         adj_composite = (ensemble_prob * 0.40) + (min(pct/100,1.0) * 0.35) + (spec_ps * 0.25)
         tier_raw      = "HIGH" if adj_composite >= 0.70 else "MODERATE" if adj_composite >= 0.40 else "LOW"
+        # Apply ANSI color codes for terminal display
+        # GREEN=HIGH, CYAN=MODERATE, MAGENTA=LOW
         tier          = f"\033[1;32m{tier_raw}\033[0m" if tier_raw=="HIGH" else \
                         f"\033[1;36m{tier_raw}\033[0m" if tier_raw=="MODERATE" else \
                         f"\033[1;35m{tier_raw}\033[0m"
@@ -233,6 +279,7 @@ def predict_ensemble(sample, outdir, human_pct=20.0):
     else:
         print(f"\n    \033[1;36m→ No organism above {THRESHOLD}% threshold\033[0m")
 
+    # Save ensemble scores to CSV for use in final report and database
     out_path = f"{outdir}/{sample}_ensemble_scores.csv"
     pd.DataFrame(results).to_csv(out_path, index=False)
     print(f"      \033[1;36m✓ Saved: {sample}_ensemble_scores.csv\033[0m")
@@ -240,6 +287,8 @@ def predict_ensemble(sample, outdir, human_pct=20.0):
     return results
 
 if __name__ == "__main__":
+    # Parse command line arguments
+    # human_pct read from QC JSON if available, otherwise from argv or default 20%
     sample    = sys.argv[1]
     outdir    = sys.argv[2]
     specimen_type = sys.argv[4] if len(sys.argv) > 4 else "unknown"
