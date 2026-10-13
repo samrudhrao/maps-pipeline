@@ -9,32 +9,25 @@ THRESHOLD=3.0
 mkdir -p $OUTDIR/{fastqc,fastp,human_depleted,bact_results,fungi_results,assembly,mlst,virulence,multiqc}
 
 # Convert BAM to FASTQ if input is BAM
+# Supports Illumina paired-end BAM and Ion Torrent single-end BAM
 if [[ "$R1" == *.bam ]]; then
     echo "BAM file detected — converting to FASTQ..."
     BAM_BASE=$OUTDIR/fastp/${SAMPLE}_from_bam
     samtools sort -n $R1 -o ${BAM_BASE}_sorted.bam 2>/dev/null
 
-    # Detect PacBio by checking header
-    IS_PACBIO=$(samtools view -H $R1 2>/dev/null | grep -c "PL:PACBIO" || echo 0)
-
-    if [ "$IS_PACBIO" -gt 0 ]; then
-        echo "  PacBio HiFi BAM detected — using single-end conversion"
-        samtools fastq -0 ${BAM_BASE}_R1.fastq -n ${BAM_BASE}_sorted.bam 2>/dev/null
-        R1=${BAM_BASE}_R1.fastq
-        R2=${BAM_BASE}_R1.fastq
-        echo "  PacBio single-end BAM converted successfully"
+    # Try paired-end conversion first
+    samtools fastq -1 ${BAM_BASE}_R1.fastq.gz -2 ${BAM_BASE}_R2.fastq.gz -0 /dev/null -s /dev/null -n ${BAM_BASE}_sorted.bam 2>/dev/null
+    if [ -s ${BAM_BASE}_R2.fastq.gz ]; then
+        # Paired-end BAM (Illumina)
+        R1=${BAM_BASE}_R1.fastq.gz
+        R2=${BAM_BASE}_R2.fastq.gz
+        echo "  Paired-end BAM converted successfully"
     else
-        samtools fastq -1 ${BAM_BASE}_R1.fastq.gz -2 ${BAM_BASE}_R2.fastq.gz -0 /dev/null -s /dev/null -n ${BAM_BASE}_sorted.bam 2>/dev/null
-        if [ -s ${BAM_BASE}_R2.fastq.gz ]; then
-            R1=${BAM_BASE}_R1.fastq.gz
-            R2=${BAM_BASE}_R2.fastq.gz
-            echo "  Paired-end BAM converted successfully"
-        else
-            samtools fastq -0 ${BAM_BASE}_R1.fastq.gz -n $R1 2>/dev/null
-            R1=${BAM_BASE}_R1.fastq.gz
-            R2=${BAM_BASE}_R1.fastq.gz
-            echo "  Single-end BAM converted successfully"
-        fi
+        # Single-end BAM (Ion Torrent)
+        samtools fastq -0 ${BAM_BASE}_R1.fastq.gz -n $R1 2>/dev/null
+        R1=${BAM_BASE}_R1.fastq.gz
+        R2=${BAM_BASE}_R1.fastq.gz
+        echo "  Single-end BAM converted successfully"
     fi
     echo "  BAM conversion done"
 fi
@@ -54,12 +47,17 @@ echo "================================================"
 echo "MAPS Pipeline — Sample: $SAMPLE"
 echo "================================================"
 
-# Step 1: FastQC
+# Step 1: FastQC — raw read quality assessment
+# Generates HTML report showing Q30 scores, GC content, duplication rates
+# Output: $OUTDIR/fastqc/
 echo "Step 1: FastQC quality check..."
 fastqc $R1 $R2 -o $OUTDIR/fastqc/ --threads 8 -q
 echo "  FastQC done"
 
-# Step 2: fastp
+# Step 2: fastp — adapter trimming and quality filtering
+# Removes low quality reads (Q<20) and short reads (<50bp)
+# Illumina: paired-end mode | Ion Torrent: single-end mode
+# Output: $OUTDIR/fastp/${SAMPLE}_R1_clean.fastq.gz
 echo "Step 2: fastp trimming..."
 if [ "$PLATFORM" = "iontorrent" ]; then
     fastp \
@@ -86,7 +84,9 @@ else
 fi
 echo "  fastp done"
 
-# Step 3: Human depletion
+# Step 3: Human depletion — removes human reads using Kraken2
+# Classifies reads against human reference genome and discards them
+# Remaining reads = microbial fraction used for pathogen detection
 echo "Step 3: Human read depletion..."
 if [ "$PLATFORM" = "iontorrent" ]; then
     kraken2 \
@@ -114,7 +114,9 @@ else
 fi
 echo "  Human depletion done"
 
-# Step 3b: QC check
+# Step 3b: QC check — validates sample quality before proceeding
+# Hard fail criteria: <50k reads, >90% human DNA, <1000 microbial reads, <50% Q30
+# Pipeline stops here if sample fails — no results generated
 echo "Step 3b: QC check..."
 python3 ~/maps/scripts/maps_qc.py $SAMPLE $OUTDIR
 QC_STATUS=$(python3 -c "import json; d=json.load(open('$OUTDIR/${SAMPLE}_qc.json')); print(d['status'])" 2>/dev/null)
@@ -125,7 +127,9 @@ if [ "$QC_STATUS" = "FAIL" ]; then
 fi
 echo "  QC done"
 
-# Step 4: Bacterial classification
+# Step 4: Bacterial classification — Kraken2 against standard bacterial DB (7.5GB)
+# K-mer based classification of microbial reads against NCBI RefSeq
+# Output: $OUTDIR/bact_results/${SAMPLE}_bact_report.txt
 echo "Step 4: Bacterial classification..."
 if [ "$PLATFORM" = "iontorrent" ]; then
     kraken2 \
@@ -147,7 +151,9 @@ else
 fi
 echo "  Bacterial classification done"
 
-# Step 4b: Supplemental DB (only if Staphylococcus > 5%)
+# Step 4b: Supplemental DB — runs only when Staphylococcus reads detected
+# Contains S. cohnii and B. licheniformis — organisms poorly represented in standard DB
+# Only adds organisms if not already detected in main DB at sufficient abundance
 echo "Step 4b: Supplemental database classification..."
 STAPH_READS=$(grep -w "Staphylococcus$" $OUTDIR/bact_results/${SAMPLE}_bact_report.txt 2>/dev/null | awk '{print $2}' | head -1)
 STAPH_READS=${STAPH_READS:-0}
@@ -176,7 +182,9 @@ else
     echo "  Staphylococcus not dominant — skipping supplemental DB"
 fi
 
-# Step 5: Fungal classification
+# Step 5: Fungal classification — custom 26-species clinical fungal DB
+# Detects clinically relevant fungi: Candida, Aspergillus, Fusarium, Mucorales etc.
+# Output: $OUTDIR/fungi_results/${SAMPLE}_fungi_report.txt
 echo "Step 5: Fungal classification..."
 if [ "$PLATFORM" = "iontorrent" ]; then
     kraken2 \
@@ -197,7 +205,9 @@ else
 fi
 echo "  Fungal classification done"
 
-# Step 5b: Viral classification
+# Step 5b: Viral classification — Kraken2 against clinical viral DB
+# Detects human pathogenic viruses — excludes bacteriophages
+# Output: $OUTDIR/bact_results/${SAMPLE}_viral_report.txt
 echo "Step 5b: Viral classification..."
 if [ "$PLATFORM" = "iontorrent" ]; then
     kraken2 \
@@ -221,12 +231,15 @@ echo "  Viruses detected:"
 awk '$4=="S" && $1>0.1 {print "   ", $1"%", $6, $7, $8}' \
     $OUTDIR/bact_results/${SAMPLE}_viral_report.txt | head -5
 
-# Step 5c: Viral clinical report
+# Step 5c: Viral clinical report — filters and formats viral findings
+# Removes phages and non-pathogenic viruses, generates clinical summary
 echo "Step 5c: Viral screening report..."
 python3 ~/maps/scripts/maps_viral_report.py $SAMPLE $OUTDIR 2>/dev/null
 echo "  Viral screening done"
 
-# Step 6: Assembly
+# Step 6: Genome assembly — SPAdes de novo assembly of microbial reads
+# --careful mode for higher accuracy, --iontorrent flag for Ion Torrent data
+# Assembly used for MLST, virulence, and AMR gene detection
 echo "Step 6: Genome assembly (SPAdes)..."
 if [ "$PLATFORM" = "iontorrent" ]; then
     spades.py \
@@ -245,7 +258,9 @@ else
 fi
 echo "  Assembly done"
 
-# Step 7: MLST
+# Step 7: MLST — multilocus sequence typing for strain identification
+# Runs on assembled contigs — may not resolve in metagenomics due to fragmented assembly
+# Output: $OUTDIR/mlst/${SAMPLE}_mlst.txt
 echo "Step 7: MLST strain typing..."
 mlst \
     --datadir ~/maps/mlst-2.23.0/db/pubmlst \
@@ -255,7 +270,9 @@ mlst \
 cat $OUTDIR/mlst/${SAMPLE}_mlst.txt
 echo "  MLST done"
 
-# Step 8: Virulence genes
+# Step 8: Virulence gene detection — ABRicate against VFDB database
+# Detects toxins, adhesins, invasins and other virulence factors
+# Output: $OUTDIR/virulence/${SAMPLE}_virulence.txt
 echo "Step 8: Virulence gene detection..."
 abricate \
     --db vfdb \
@@ -264,7 +281,10 @@ abricate \
 echo "  Virulence genes: $(grep -v '#' $OUTDIR/virulence/${SAMPLE}_virulence.txt | wc -l)"
 echo "  ABRicate done"
 
-# Step 8b: AMR resistance detection
+# Step 8b: AMR resistance detection — ABRicate against CARD + ResFinder
+# Standard threshold: >=80% coverage, >=90% identity
+# Critical genes (mecA, vanA, NDM, KPC etc): >=60% coverage threshold
+# Output: $OUTDIR/bact_results/${SAMPLE}_amr_*.txt
 echo "Step 8b: AMR resistance detection..."
 abricate \
     --db card \
@@ -277,7 +297,10 @@ abricate \
 python3 ~/maps/scripts/maps_amr_report.py $SAMPLE $OUTDIR
 echo "  AMR detection done"
 
-# Step 9: Abundance report
+# Step 9: Abundance report — calculates relative abundance of detected organisms
+# Applies 3% minimum threshold and filter list (137 contaminants excluded)
+# Merges supplemental DB results for S. cohnii and B. licheniformis
+# Output: $OUTDIR/${SAMPLE}_abundance.csv
 echo "Step 9: Generating abundance report..."
 python3 << PYEOF
 import pandas as pd
@@ -377,7 +400,10 @@ echo "  Abundance report done"
 
 echo "DONE: $SAMPLE"
 
-# Step 9b: Coverage breadth (informational flag)
+# Step 9b: Coverage breadth — informational only, does NOT filter results
+# Aligns reads to reference genomes using Minimap2, calculates % genome covered
+# Low breadth (<1%) may indicate noise rather than true infection
+# Output: $OUTDIR/${SAMPLE}_coverage.json
 echo "Step 9b: Coverage breadth analysis..."
 R1_CLEAN=$OUTDIR/human_depleted/${SAMPLE}_clean_1.fastq
 R2_CLEAN=$OUTDIR/human_depleted/${SAMPLE}_clean_2.fastq
@@ -388,12 +414,17 @@ fi
 python3 -W ignore ~/maps/scripts/maps_coverage.py $SAMPLE $OUTDIR $R1_CLEAN $R2_CLEAN 2>/dev/null
 echo "  Coverage breadth done"
 
-# Step 10: AI scoring
+# Step 10: AI confidence scoring — Random Forest model scores each organism
+# 11 features including abundance, human_pct, microbial_reads, pathogen_score
+# Tiers: HIGH >=70%, MODERATE 40-69%, LOW <40%
+# Output: $OUTDIR/${SAMPLE}_ai_scores.csv
 echo "Step 10: AI confidence scoring..."
 python3 -W ignore ~/maps/scripts/run_ai_scoring.py $SAMPLE $OUTDIR
 echo "  AI scoring done"
 
-# Step 11: Co-infection detection
+# Step 11: Co-infection detection — identifies polymicrobial infections
+# Flags samples with multiple organisms above threshold
+# Applies specimen-type exclusions to remove biologically implausible findings
 echo "Step 11: Co-infection detection..."
 python3 << PYEOF
 import pandas as pd
@@ -492,33 +523,44 @@ with open("$OUTDIR/${SAMPLE}_coinfection.txt", "w") as f:
 PYEOF
 echo "  Co-infection check done"
 
-# Step 12: MultiQC
+# Step 12: MultiQC — aggregates QC metrics from FastQC and fastp into one report
+# Output: $OUTDIR/multiqc/multiqc_report.html
 echo "Step 12: MultiQC summary..."
 multiqc $OUTDIR/ -o $OUTDIR/multiqc/ -q 2>/dev/null
 echo "  MultiQC done"
 
-# Step 13: Final report
+# Step 13: Final clinical report — generates ranked pathogen list with AI scores
+# Includes AMR findings, virulence genes, low abundance detections
+# Output: $OUTDIR/${SAMPLE}_final_report.csv and ${SAMPLE}_summary.json
 echo "Step 13: Generating final clinical report..."
 python3 -W ignore ~/maps/scripts/maps_final_report.py $SAMPLE $OUTDIR $SPECIMEN_TYPE
 echo "  Final report done"
 
-# Step 14: AI prediction
+# Step 14: AI prediction — Random Forest predicts most likely pathogen
+# Reads from abundance CSV for consistency with all other steps
+# Output: printed to stdout and included in final report
 echo "Step 14: AI pathogen prediction..."
 python3 -W ignore ~/maps/scripts/maps_predict.py $SAMPLE $OUTDIR 20.0 $SPECIMEN_TYPE
 echo "  Prediction done"
 
-# Step 14b: Ensemble prediction
+# Step 14b: Ensemble prediction — RF (55%) + XGBoost (45%) weighted ensemble
+# SHAP values explain top 3 feature drivers per organism
+# Most reliable AI output — use this for clinical interpretation
 echo "Step 14b: Ensemble prediction (RF + XGBoost + SHAP)..."
 python3 -W ignore ~/maps/scripts/maps_ensemble.py $SAMPLE $OUTDIR 20.0 $SPECIMEN_TYPE
 echo "  Ensemble done"
 
-# Step 15: Save to database
+# Step 15: Save to database — stores results in SQLite (maps_results.db)
+# Preserves existing SoC data if sample is rerun
+# Schema: see scripts/maps_database_schema.sql
 echo "Step 15: Saving to results database..."
 python3 ~/maps/scripts/maps_database.py save $SAMPLE $OUTDIR
 echo "  Database updated"
 
 
-# Step 16: Statistical analysis
+# Step 16: Statistical analysis — Wilson score confidence intervals per organism
+# Isolation Forest anomaly detection flags unusual microbial profiles
+# Output: printed to stdout
 echo "Step 16: Statistical analysis (confidence intervals + anomaly detection)..."
 python3 -W ignore ~/maps/scripts/maps_stats.py $SAMPLE $OUTDIR $SPECIMEN_TYPE
 echo "  Stats done"
