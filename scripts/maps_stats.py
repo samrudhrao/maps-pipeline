@@ -1,3 +1,27 @@
+#!/usr/bin/env python3
+"""
+MAPS Statistical Analysis - maps_stats.py
+Step 16 of the MAPS pipeline — confidence intervals and anomaly detection.
+
+Two main functions:
+  1. Wilson score confidence intervals for each detected organism
+     - Better than normal approximation for proportions near 0 or 100%
+     - 95% confidence level by default
+     - Precision interpreted as Very High/High/Moderate/Low
+
+  2. Isolation Forest anomaly detection
+     - Trained on 26 confirmed clinical samples from BSW
+     - Flags samples with unusual microbial profiles
+     - Score < -0.15 = HIGH anomaly, < -0.05 = MODERATE anomaly
+     - Anomaly does NOT invalidate results — flags for manual review
+
+To retrain anomaly model: update training data in train_anomaly_model()
+and delete ~/maps/models/maps_anomaly_model.pkl to force retraining.
+
+Usage: python3 maps_stats.py SAMPLE OUTDIR [SPECIMEN_TYPE]
+Output: OUTDIR/SAMPLE_stats.json and OUTDIR/SAMPLE_confidence_intervals.csv
+"""
+
 import numpy as np
 import pandas as pd
 import joblib
@@ -8,7 +32,16 @@ from scipy.stats import norm
 from sklearn.ensemble import IsolationForest
 
 # ── CONFIDENCE INTERVALS ──────────────────────────────────────────
+# Wilson score interval is preferred over normal approximation
+# because it works correctly for proportions near 0% or 100%
 def wilson_confidence_interval(reads_organism, total_reads, confidence=0.95):
+    """
+    Calculate Wilson score confidence interval for a proportion.
+    reads_organism: reads assigned to this organism
+    total_reads: total microbial reads in sample
+    confidence: confidence level (default 0.95 = 95% CI)
+    Returns (lower, upper) as percentages
+    """
     """Wilson score interval — best method for proportions"""
     if total_reads == 0:
         return 0.0, 0.0
@@ -22,6 +55,10 @@ def wilson_confidence_interval(reads_organism, total_reads, confidence=0.95):
     return round(lower, 2), round(upper, 2)
 
 def interpret_ci(lower, upper, abundance):
+    """
+    Interpret the width of a confidence interval as a precision label.
+    Narrow CI = high precision (many reads), wide CI = low precision (few reads).
+    """
     """Interpret width of confidence interval"""
     width = upper - lower
     if width < 2:
@@ -34,7 +71,17 @@ def interpret_ci(lower, upper, abundance):
         return "Low precision — interpret with caution"
 
 # ── ANOMALY DETECTION ─────────────────────────────────────────────
+# Isolation Forest detects samples that differ significantly from
+# the 26 training samples. Anomaly = unusual microbial profile,
+# NOT necessarily a failed sample or incorrect result.
 def train_anomaly_model():
+    """
+    Train Isolation Forest anomaly detector on known BSW clinical samples.
+    Training data: 26 confirmed samples with known abundance, human_pct, total_reads.
+    Model saved to ~/maps/models/maps_anomaly_model.pkl
+    Called automatically if model file not found.
+    To retrain: delete the pkl file and run any sample through the pipeline.
+    """
     """Train Isolation Forest on known samples"""
     training = [
         (0.01,  8.87,  633193),
@@ -80,6 +127,13 @@ def train_anomaly_model():
     return iso
 
 def detect_anomaly(abundance, human_pct, total_reads):
+    """
+    Check if sample profile is anomalous compared to training data.
+    abundance: top organism abundance percentage
+    human_pct: human DNA percentage
+    total_reads: total read count
+    Returns dict with is_anomaly, score, severity, reason
+    """
     """Check if sample looks anomalous vs training data"""
     model_path = os.path.expanduser("~/maps/models/maps_anomaly_model.pkl")
 
@@ -114,6 +168,8 @@ def detect_anomaly(abundance, human_pct, total_reads):
     }
 
 # ── MAIN FUNCTION ─────────────────────────────────────────────────
+# Runs confidence intervals and anomaly detection for a sample
+# Called by full_pipeline.sh at Step 16
 def run_stats(sample, outdir):
     with open(os.path.expanduser("~/maps/filter_list.txt")) as f:
         EXCLUDE = [line.strip().lower() for line in f if line.strip()]
@@ -132,7 +188,9 @@ def run_stats(sample, outdir):
                         rows[name] = (pct, reads)
         return rows
 
-    # Use abundance CSV — already has supplemental DB merged correctly
+    # Use abundance CSV as primary data source
+    # This ensures consistency with all other pipeline steps
+    # Falls back to Kraken2 reports if abundance CSV not available
     import csv as _csv
     abundance_path = f"{outdir}/{sample}_abundance.csv"
     bact = {}
@@ -151,7 +209,8 @@ def run_stats(sample, outdir):
         bact = parse_report(f"{outdir}/bact_results/{sample}_bact_report.txt")
         fung = parse_report(f"{outdir}/fungi_results/{sample}_fungi_report.txt")
 
-    # Apply specimen-type exclusions
+    # Apply specimen-type exclusions to remove biologically implausible organisms
+    # e.g. gut bacteria should not appear in synovial fluid results
     try:
         import sys as _sys
         _sys.path.insert(0, os.path.expanduser("~/maps/scripts"))
@@ -172,7 +231,8 @@ def run_stats(sample, outdir):
 
     total_reads = sum(v[1] for v in list(bact.values())) if bact else 100000
 
-    # Human pct from report
+    # Get human DNA percentage for anomaly detection
+    # Read from Kraken2 human depletion report
     human_pct   = 20.0
     human_report = f"{outdir}/human_depleted/{sample}_human_report.txt"
     if os.path.exists(human_report):
@@ -186,7 +246,8 @@ def run_stats(sample, outdir):
     print(f"MAPS STATISTICAL ANALYSIS — {sample}")
     print(f"{'='*70}")
 
-    # Confidence intervals
+    # Calculate Wilson score confidence intervals for each organism above 3% threshold
+    # Wider CI = fewer reads supporting the detection = less precise estimate
     print(f"\n[CONFIDENCE INTERVALS — 95%]")
     print(f"  {'Organism':<42} {'Abundance':>10} {'95% CI':>20} {'Precision':>25}")
     print("  " + "─"*100)
@@ -210,7 +271,8 @@ def run_stats(sample, outdir):
     if not ci_results:
         print("  No organisms above 3% threshold")
 
-    # Anomaly detection
+    # Run Isolation Forest anomaly detection on top organism abundance
+    # Anomaly flag does not invalidate results — flags for physician review
     print(f"\n[ANOMALY DETECTION]")
     top_abundance = above.iloc[0] if len(above) > 0 else 0.0
     anomaly = detect_anomaly(top_abundance, human_pct, total_reads)
@@ -228,7 +290,8 @@ def run_stats(sample, outdir):
         print(f"    - Verifying sample preparation")
         print(f"    - Reviewing raw data quality in FastQC report")
 
-    # Save results
+    # Save statistical results to JSON and CSV for downstream use
+    # JSON included in pipeline output, CSV for data analysis
     stats_output = {
         "sample":            sample,
         "confidence_intervals": ci_results,
