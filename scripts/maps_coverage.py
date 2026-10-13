@@ -1,9 +1,32 @@
 #!/usr/bin/env python3
 """
-maps_coverage.py — Genome coverage breadth reporting
-Adds coverage breadth as an informational flag to the abundance report
-Does NOT filter organisms — purely additive information for clinicians
+MAPS Coverage Breadth - maps_coverage.py
+Step 9b of the MAPS pipeline — genome coverage breadth as informational flag.
+
+IMPORTANT: This script does NOT filter or remove any organisms from results.
+It is purely informational — adds breadth percentage alongside abundance.
+Low breadth may indicate noise rather than true infection but does NOT
+automatically disqualify a detection.
+
+How it works:
+  1. For each organism in abundance CSV, looks up RefSeq reference genome
+  2. Downloads reference genome if not cached (cached in ~/maps/ref_genomes/)
+  3. Aligns human-depleted reads to reference using Minimap2
+  4. Calculates % of reference genome covered by at least 1 read
+  5. Reports breadth alongside abundance for physician interpretation
+
+Expected breadth values in clinical metagenomics (short-read, 200-500k reads):
+  - Real dominant infection: 0.1-5% breadth
+  - Low abundance real infection: 0.05-1% breadth
+  - Noise/contamination: <0.05% breadth
+  These thresholds are based on BSW validation data — may vary by sample type
+
+To add new organisms: add entry to REFSEQ_MAP with NCBI RefSeq accession
+Reference genomes cached in: ~/maps/ref_genomes/
+Requires: minimap2, samtools, NCBI datasets CLI
+
 Usage: python3 maps_coverage.py SAMPLE OUTDIR R1 [R2]
+Output: OUTDIR/SAMPLE_coverage.json
 """
 
 import os, sys, subprocess, csv, json, tempfile, shutil
@@ -17,6 +40,9 @@ CACHE_DIR = os.path.expanduser("~/maps/ref_genomes")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 # RefSeq accessions for common clinical organisms
+# Used to download reference genomes for coverage breadth calculation
+# To add a new organism: find its RefSeq assembly accession on NCBI
+# and add it here as 'organism name (lowercase)': 'GCF_XXXXXXXXX.X'
 REFSEQ_MAP = {
     "staphylococcus aureus":       "GCF_000013425.1",
     "staphylococcus epidermidis":  "GCF_000007645.1",
@@ -46,6 +72,12 @@ REFSEQ_MAP = {
 }
 
 def get_genome(org_name):
+    """
+    Get path to reference genome for an organism.
+    Downloads from NCBI if not already cached in ~/maps/ref_genomes/
+    Returns path to gzipped FASTA file or None if organism not in REFSEQ_MAP.
+    Genomes are cached after first download — no re-downloading on subsequent runs.
+    """
     key = org_name.lower().strip()
     accession = None
     for name, acc in REFSEQ_MAP.items():
@@ -83,12 +115,22 @@ def get_genome(org_name):
     return None
 
 def calc_breadth(genome_path, r1, r2):
+    """
+    Calculate genome coverage breadth using Minimap2 and samtools.
+    Aligns human-depleted reads to reference genome.
+    Returns percentage of reference genome covered by at least 1 read.
+    Uses temporary directory cleaned up after each calculation.
+    Returns None if alignment fails.
+    """
     tmp = tempfile.mkdtemp()
     try:
         sam = os.path.join(tmp, "aln.sam")
         bam = os.path.join(tmp, "aln.bam")
         bam_s = bam + ".sorted.bam"
 
+        # Align reads to reference genome using Minimap2
+        # -ax sr = short-read preset for Illumina/Ion Torrent reads
+        # --secondary=no = exclude secondary alignments to avoid overcounting
         cmd = ["minimap2", "-ax", "sr", "-t", str(THREADS),
                "--secondary=no", genome_path, r1]
         if r2 and r2 != r1 and os.path.exists(r2):
@@ -100,12 +142,15 @@ def calc_breadth(genome_path, r1, r2):
         if result.returncode != 0:
             return None
 
+        # Convert SAM to sorted BAM, filter unmapped reads (-F 4)
         subprocess.run(["samtools", "view", "-bS", "-F", "4",
                        sam, "-o", bam], capture_output=True)
         subprocess.run(["samtools", "sort", bam, "-o", bam_s],
                       capture_output=True)
         subprocess.run(["samtools", "index", bam_s], capture_output=True)
 
+        # Calculate per-contig coverage statistics using samtools coverage
+        # Column 5 = coverage breadth (% of bases covered)
         res = subprocess.run(["samtools", "coverage", bam_s],
                            capture_output=True, text=True)
         if res.returncode != 0:
@@ -133,6 +178,12 @@ def calc_breadth(genome_path, r1, r2):
         shutil.rmtree(tmp, ignore_errors=True)
 
 def main():
+    """
+    Main function — processes all organisms in abundance CSV.
+    Runs coverage breadth calculation for each organism with a reference genome.
+    Organisms without reference genomes reported as N/A.
+    Results saved to JSON file for physician reference.
+    """
     abundance_path = f"{OUTDIR}/{SAMPLE}_abundance.csv"
     if not os.path.exists(abundance_path):
         sys.exit(0)
@@ -143,7 +194,8 @@ def main():
     if not organisms:
         sys.exit(0)
 
-    # Get human depleted reads
+    # Get path to human-depleted reads from Step 3
+    # Tries paired-end first, falls back to single-end for Ion Torrent
     r1 = f"{OUTDIR}/human_depleted/{SAMPLE}_clean_1.fastq"
     r2 = f"{OUTDIR}/human_depleted/{SAMPLE}_clean_2.fastq"
     if not os.path.exists(r1):
@@ -179,7 +231,9 @@ def main():
             flag = " ⚠ LOW" if breadth < 1.0 else ""
             print(f"  {org:<45} {pct:>9.1f}%  {breadth:>8.2f}%{flag}")
 
-    # Save coverage JSON
+    # Save coverage breadth results to JSON
+    # Includes note that this is informational only
+    # Physicians can view breadth alongside abundance in the report
     with open(f"{OUTDIR}/{SAMPLE}_coverage.json", 'w') as f:
         json.dump({
             'sample': SAMPLE,
