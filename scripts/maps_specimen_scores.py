@@ -1,8 +1,31 @@
+#!/usr/bin/env python3
+"""
+MAPS Specimen Scores - maps_specimen_scores.py
+Provides specimen-type specific pathogen score adjustments and exclusions.
+Imported by maps_final_report.py, maps_predict.py, maps_ensemble.py, maps_stats.py.
+
+Two main components:
+
+1. SPECIMEN_EXCLUSIONS — organisms excluded entirely for a specimen type
+   e.g. Pneumocystis excluded from synovial fluid (not biologically plausible)
+   To add new exclusions: add organism name (lowercase) to appropriate list
+
+2. SPECIMEN_ADJUSTMENTS — multipliers applied to base pathogen scores
+   Multiplier >1.0 = more likely pathogen in this context
+   Multiplier <1.0 = less likely pathogen in this context
+   To add new adjustments: add organism-multiplier pair to appropriate dict
+
+Supported specimen types: synovial, pleural, peritoneal, plasma, bal, abscess
+To add new specimen types: add entries to both SPECIMEN_EXCLUSIONS and SPECIMEN_ADJUSTMENTS
+"""
+
 # Specimen-type specific pathogen score adjustments
 # Multipliers applied to base pathogen score based on sample type
 # 1.0 = no change, <1.0 = less likely pathogen in this context, >1.0 = more likely
 
 # Organisms to exclude entirely by specimen type
+# These organisms are biologically implausible in the listed specimen types
+# and should not appear in clinical reports regardless of abundance
 SPECIMEN_EXCLUSIONS = {
     "synovial": [
         "pneumocystis",
@@ -26,6 +49,11 @@ SPECIMEN_EXCLUSIONS = {
 }
 
 def should_exclude(organism, specimen_type):
+    """
+    Check if an organism should be excluded from reporting for this specimen type.
+    Returns True if the organism is in the exclusion list for this specimen type.
+    Called by maps_final_report.py, maps_predict.py, maps_ensemble.py.
+    """
     """Return True if organism should be excluded for this specimen type."""
     if not specimen_type or specimen_type == "unknown":
         return False
@@ -36,6 +64,11 @@ def should_exclude(organism, specimen_type):
                 return True
     return False
 
+# Specimen-type score multipliers
+# Applied to base pathogen score from PATHOGEN_SCORES in maps_final_report.py
+# Scores are capped at 1.0 after adjustment
+# Example: S. aureus in synovial fluid gets 1.2x multiplier (more suspicious)
+# Example: S. mitis in synovial fluid gets 0.1x multiplier (likely contamination)
 SPECIMEN_ADJUSTMENTS = {
     "synovial": {
         # Oral/skin flora unlikely in synovial fluid
@@ -109,6 +142,13 @@ SPECIMEN_ADJUSTMENTS = {
 }
 
 def get_specimen_adjusted_score(base_score, organism, specimen_type):
+    """
+    Adjust pathogen score based on clinical specimen type context.
+    base_score: original pathogen score from PATHOGEN_SCORES (0.0-1.0)
+    organism: organism name string (with or without [BACT]/[FUNG] prefix)
+    specimen_type: clinical specimen type string
+    Returns adjusted score capped at 1.0
+    """
     """Adjust pathogen score based on specimen type context."""
     if not specimen_type:
         return base_score
@@ -136,7 +176,9 @@ def get_specimen_adjusted_score(base_score, organism, specimen_type):
     return min(1.0, base_score * multiplier)
 
 if __name__ == "__main__":
-    # Test
+    # Quick test to verify specimen adjustments are working correctly
+    # Run: python3 maps_specimen_scores.py
+    # Expected: S. mitis score reduced in synovial, S. aureus score increased
     tests = [
         ("Streptococcus mitis", "synovial", 0.7),
         ("Staphylococcus aureus", "synovial", 0.7),
