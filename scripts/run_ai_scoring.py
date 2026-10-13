@@ -1,3 +1,22 @@
+#!/usr/bin/env python3
+"""
+MAPS AI Scoring - run_ai_scoring.py
+Step 10 of the MAPS pipeline — Random Forest confidence scoring.
+Scores each detected organism above 3% threshold using the trained RF model.
+
+This is a simpler version of maps_predict.py (Step 14) — it runs earlier
+in the pipeline to provide preliminary AI scores before the full prediction.
+Results saved to OUTDIR/SAMPLE_ai_scores.csv for use in downstream steps.
+
+Primary input: OUTDIR/SAMPLE_abundance.csv (generated in Step 9)
+Fallback input: Kraken2 report files if abundance CSV not available
+
+Confidence tiers: HIGH >=70%, MODERATE 40-69%, LOW <40%
+
+Usage: python3 run_ai_scoring.py SAMPLE OUTDIR
+Output: OUTDIR/SAMPLE_ai_scores.csv
+"""
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -7,9 +26,14 @@ import sys
 sample = sys.argv[1]
 outdir = sys.argv[2]
 
+# Load contaminant exclusion list
+# 137 environmental organisms filtered from results
 with open(os.path.expanduser("~/maps/filter_list.txt")) as f:
     EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 
+# Clinical pathogen prior probability scores
+# Must match PATHOGEN_SCORES in maps_final_report.py and maps_predict.py
+# Update all three files if adding new organisms
 PATHOGEN_SCORES = {
     "pseudomonas aeruginosa": 1.0, "staphylococcus aureus": 1.0,
     "escherichia coli": 0.9,       "klebsiella pneumoniae": 1.0,
@@ -48,6 +72,8 @@ def parse_report(path, min_reads=50):
                     rows[name] = (pct, reads)
     return rows
 
+# Load trained Random Forest model
+# If model not found pipeline exits gracefully with a warning
 model_path = os.path.expanduser("~/maps/models/maps_ai_model.pkl")
 if not os.path.exists(model_path):
     print("  AI model not found")
@@ -57,7 +83,9 @@ model    = joblib.load(model_path)
 le       = joblib.load(os.path.expanduser("~/maps/models/maps_label_encoder.pkl"))
 features = joblib.load(os.path.expanduser("~/maps/models/maps_features.pkl"))
 
-# Use abundance CSV — already has supplemental DB merged correctly
+# Use abundance CSV as primary data source
+# Contains supplemental DB organisms already merged with correct logic
+# Falls back to raw Kraken2 reports if abundance CSV not found
 import csv as _csv
 abundance_path = f"{outdir}/{sample}_abundance.csv"
 bact = {}
@@ -83,8 +111,12 @@ if fung_df.sum() > 0: fung_df = fung_df / fung_df.sum() * 100
 bact_df.index = ["[BACT] " + x for x in bact_df.index]
 fung_df.index = ["[FUNG] " + x for x in fung_df.index]
 combined = pd.concat([bact_df, fung_df]).sort_values(ascending=False)
+# Only score organisms above 3% threshold
+# Below-threshold organisms are tracked in low_abundance_detections column
 combined = combined[combined >= 3.0]
 
+# Estimate total reads and human DNA for feature calculation
+# human_pct defaults to 20% if QC JSON not available
 total_reads = sum(v[1] for v in list(bact.values())[:1]) if bact else 100000
 human_pct   = 20.0
 
@@ -105,6 +137,8 @@ for org, pct in combined.head(10).items():
     try: stype_enc  = le.transform(["unknown"])[0]
     except: stype_enc = 0
 
+    # Build 11-feature vector matching training feature order exactly
+    # Order must match maps_features.pkl — do not change without retraining
     vals = [pct, human_pct, microbial_reads, path_score,
             above_threshold, high_human, abund_x_score,
             log_reads, low_reads, fung_flag, stype_enc]
@@ -116,5 +150,6 @@ for org, pct in combined.head(10).items():
     ai_results.append({"organism": org, "abundance_%": pct,
                         "ai_score": round(prob,3), "tier": tier})
 
+# Save AI scores to CSV for use in Step 13 final report
 pd.DataFrame(ai_results).to_csv(f"{outdir}/{sample}_ai_scores.csv", index=False)
 print(f"\n  AI scores saved to {outdir}/{sample}_ai_scores.csv")
