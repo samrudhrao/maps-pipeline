@@ -1,3 +1,27 @@
+#!/usr/bin/env python3
+"""
+MAPS AMR Resistance Report - maps_amr_report.py
+Parses ABRicate output from CARD and ResFinder databases to identify
+antimicrobial resistance genes in assembled contigs.
+
+Detection thresholds:
+  - Standard genes: >=80% coverage, >=90% identity
+  - Critical genes (mecA, vanA, NDM, KPC, MCR, OXA-48, VIM, IMP, GES, SPM): >=60% coverage
+
+Features:
+  - 37 resistance gene families with clinical interpretation
+  - 8 high-risk combination alerts (e.g. NDM + OXA-48 = pan-resistant)
+  - Contig-level Kraken2 carrier identification
+  - Drug class lookup for clinical reporting
+
+To add new resistance genes: update RESISTANCE_MAP dictionary
+To add new critical genes: update CRITICAL_GENES list
+To add new combination alerts: update HIGH_RISK_COMBOS list
+
+Usage: python3 maps_amr_report.py SAMPLE OUTDIR
+Output: printed to stdout, saved to OUTDIR/SAMPLE_amr_report.txt
+"""
+
 import pandas as pd
 import os
 import sys
@@ -42,6 +66,9 @@ RESISTANCE_MAP = {
 }
 
 # Gene to possible carrier organisms
+# Used to suggest which organism likely carries the resistance gene
+# when contig-level Kraken2 classification is unresolved
+# Update this when new resistance gene-organism associations are identified
 GENE_ORGANISM_MAP = {
     "meca":    ["staphylococcus aureus"],
     "vana":    ["enterococcus faecium","enterococcus faecalis"],
@@ -65,6 +92,12 @@ GENE_ORGANISM_MAP = {
 }
 
 def get_significance(gene_name):
+    """
+    Look up drug class and clinical significance for a resistance gene.
+    Matches gene name against RESISTANCE_MAP using partial string matching.
+    Returns dict with 'drug' and 'significance' keys.
+    Returns 'Unknown' if gene not in lookup table.
+    """
     gene_lower = gene_name.lower()
     for key, info in RESISTANCE_MAP.items():
         if key.lower() in gene_lower:
@@ -72,7 +105,10 @@ def get_significance(gene_name):
     return {"drug":"Unknown","significance":"Unknown resistance gene"}
 
 def get_detected_organisms(outdir, sample):
-    """Get list of organisms detected above threshold in this sample."""
+    """Get list of organisms detected above threshold in this sample.
+    Used to cross-reference AMR gene carriers against detected pathogens.
+    Reads from abundance CSV generated in Step 9.
+    """
     detected = []
     abundance_csv = f"{outdir}/{sample}_abundance.csv"
     if os.path.exists(abundance_csv):
@@ -86,9 +122,15 @@ def get_detected_organisms(outdir, sample):
     return detected
 
 # Critical genes — lower coverage threshold (60%) due to clinical importance
+# These genes confer resistance to last-resort antibiotics
+# Even partial detection (60% coverage) is clinically actionable
+# To add a new critical gene: add its name (lowercase) to this list
 CRITICAL_GENES = ["meca", "vana", "vanb", "ndm", "kpc", "mcr", "oxa-48", "vim", "imp", "ges", "spm"]
 
-# High risk gene combinations
+# High risk gene combinations that trigger automatic clinical alerts
+# Format: ([list of genes that must ALL be present], alert message)
+# To add a new combination: append a tuple to this list
+# These alerts are printed prominently in the AMR report
 HIGH_RISK_COMBOS = [
     (["ndm", "oxa-48"],  "PAN-RESISTANT WARNING — NDM + OXA-48 detected — extremely limited treatment options"),
     (["ndm", "kpc"],     "PAN-RESISTANT WARNING — NDM + KPC detected — carbapenem resistance confirmed"),
@@ -103,6 +145,11 @@ HIGH_RISK_COMBOS = [
 ]
 
 def check_high_risk_combos(detected_genes):
+    """
+    Check if detected resistance genes form any high-risk combinations.
+    Returns list of alert messages for any combinations found.
+    Called after all genes are collected from CARD and ResFinder results.
+    """
     """Check if detected genes form any high risk combinations."""
     detected_lower = [g.lower() for g in detected_genes]
     alerts = []
@@ -112,11 +159,20 @@ def check_high_risk_combos(detected_genes):
     return alerts
 
 def is_critical_gene(gene_name):
+    """
+    Check if a gene name matches any critical gene in CRITICAL_GENES list.
+    Critical genes use a lower 60% coverage threshold instead of 80%.
+    """
     gene_lower = gene_name.lower()
     return any(c in gene_lower for c in CRITICAL_GENES)
 
 def classify_contig(contig_name, outdir, sample):
-    """Run Kraken2 on the specific contig carrying the resistance gene."""
+    """
+    Run Kraken2 on the specific contig carrying the resistance gene.
+    Identifies which organism is likely carrying the AMR gene.
+    Returns organism name at species, genus, or class level.
+    Falls back to 'Unresolved' if Kraken2 cannot classify the contig.
+    """
     import subprocess
     import tempfile
 
@@ -124,7 +180,8 @@ def classify_contig(contig_name, outdir, sample):
     if not os.path.exists(scaffolds):
         return None, None
 
-    # Extract the contig
+    # Extract the specific contig sequence from the SPAdes assembly
+    # Contig name comes from ABRicate output (e.g. NODE_1_length_50000_cov_10)
     contig_seq = []
     found = False
     with open(scaffolds) as f:
@@ -140,7 +197,8 @@ def classify_contig(contig_name, outdir, sample):
     if not contig_seq:
         return None, None
 
-    # Write to temp file and classify
+    # Write contig to temporary FASTA file and run Kraken2 classification
+    # Uses standard bacterial DB to identify the carrier organism
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta',
                                      delete=False) as tmp:
         tmp.write("".join(contig_seq))
@@ -154,7 +212,8 @@ def classify_contig(contig_name, outdir, sample):
         )
         os.unlink(tmp_path)
 
-        # Parse taxid from output
+        # Parse Kraken2 output — C = classified, U = unclassified
+        # Returns taxid and contig name for downstream name resolution
         for line in result.stdout.strip().split("\n"):
             if line.startswith("C"):
                 parts = line.split("\t")
@@ -164,6 +223,9 @@ def classify_contig(contig_name, outdir, sample):
     except:
         return None, None
 
+# Taxid to organism name lookup for common resistance gene carriers
+# Used when Kraken2 classifies a contig at genus/family/class level
+# Add new taxids here if carrier identification fails for common organisms
 TAXID_NAMES = {
     "1236":   ("Gammaproteobacteria", "class"),
     "91347":  ("Enterobacterales", "order"),
@@ -187,7 +249,8 @@ def get_likely_organism(gene_name, detected_organisms, contig_name=None,
     Use contig-level Kraken2 classification to identify carrier organism.
     Falls back to gene-organism lookup if contig classification fails.
     """
-    # Try contig-level classification first
+    # Try contig-level classification first — most accurate method
+    # Extracts the contig carrying the AMR gene and runs Kraken2 on it directly
     if contig_name and outdir and sample:
         taxid, _ = classify_contig(contig_name, outdir, sample)
         if taxid and taxid in TAXID_NAMES:
@@ -199,7 +262,8 @@ def get_likely_organism(gene_name, detected_organisms, contig_name=None,
             else:
                 return f"Unresolved — {name} ({rank} level)", "contig-level (ambiguous)"
 
-    # Fall back to gene-organism lookup
+    # Fall back to gene-organism lookup if contig classification fails
+    # Uses GENE_ORGANISM_MAP to suggest likely carriers based on known associations
     gene_lower = gene_name.lower()
     possible = []
     for key, organisms in GENE_ORGANISM_MAP.items():
@@ -218,6 +282,12 @@ def get_likely_organism(gene_name, detected_organisms, contig_name=None,
     return " / ".join(o.title() for o in possible), "inferred (not detected)"
 
 def parse_amr_report(sample, outdir):
+    """
+    Parse ABRicate resistance results from CARD and ResFinder databases.
+    Applies coverage and identity thresholds, deduplicates genes,
+    identifies carrier organisms, and checks for high-risk combinations.
+    Returns list of resistance gene dictionaries for clinical reporting.
+    """
     results  = []
     detected = get_detected_organisms(outdir, sample)
     res_path = f"{outdir}/virulence/{sample}_resistance.txt"
@@ -235,7 +305,8 @@ def parse_amr_report(sample, outdir):
                     ident      = float(parts[10])
                     resistance = parts[14].strip() if len(parts) > 14 else ""
                     gene_base  = gene.rstrip("_0123456789")
-                    # Use lower threshold for critical resistance genes
+                    # Use lower 60% coverage threshold for critical genes
+                    # Standard threshold is 80% coverage for non-critical genes
                     cov_threshold = 60 if is_critical_gene(gene) else 80
                     critical      = is_critical_gene(gene)
 
@@ -256,6 +327,7 @@ def parse_amr_report(sample, outdir):
                             "critical":     critical,
                         })
         except Exception as e:
+            # Log parse errors but continue — don't crash on malformed ABRicate output
             print(f"  Parse error: {e}")
 
     print(f"\n{'='*70}")
@@ -277,7 +349,8 @@ def parse_amr_report(sample, outdir):
             print(f"  {'':20} {r['significance']}")
             print()
 
-        # Check high risk combinations
+        # Check for high-risk gene combinations that trigger clinical alerts
+        # e.g. NDM + OXA-48 = pan-resistant, MRSA + VRE = multi-drug resistant
         detected_genes = [r['gene'] for r in results]
         alerts = check_high_risk_combos(detected_genes)
         if alerts:
@@ -289,9 +362,11 @@ def parse_amr_report(sample, outdir):
     print(f"  Total resistance genes detected: {len(results)}")
     print(f"{'='*70}")
 
+    # Save AMR results to CSV for downstream use in final clinical report
     if results:
         pd.DataFrame(results).to_csv(f"{outdir}/{sample}_amr_report.csv", index=False)
 
+    # Update summary JSON with AMR findings for inclusion in final report
     json_path = f"{outdir}/{sample}_summary.json"
     if os.path.exists(json_path):
         with open(json_path) as f:

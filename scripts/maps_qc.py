@@ -1,3 +1,19 @@
+#!/usr/bin/env python3
+"""
+MAPS QC Module - maps_qc.py
+Validates sample quality after human depletion before running the full pipeline.
+Reads Kraken2 human depletion report and fastp JSON to calculate QC metrics.
+
+Hard fail criteria (pipeline stops if any are met):
+  - Total reads < 50,000
+  - Human DNA > 90%
+  - Microbial reads < 1,000
+  - Q30 rate < 50%
+
+Usage: python3 maps_qc.py SAMPLE OUTDIR
+Output: OUTDIR/SAMPLE_qc.json
+"""
+
 import sys
 import os
 import json

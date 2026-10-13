@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+"""
+MAPS Viral Report - maps_viral_report.py
+Filters Kraken2 viral classification results to clinically significant findings.
+Removes bacteriophages and non-pathogenic viruses from the report.
+Only reports human pathogenic viruses above the read count threshold.
+
+Usage: python3 maps_viral_report.py SAMPLE OUTDIR
+Output: OUTDIR/SAMPLE_viral_report.txt
+"""
+
 import os
 import sys
 import json
@@ -26,7 +37,10 @@ CLINICAL_VIRUSES = {
     "bocavirus":                {"abbrev": "HBoV",   "significance": "Respiratory pathogen"},
 }
 
-# Known non-human pathogens to exclude
+# Known non-human pathogens to exclude from clinical reporting
+# These are bacteriophages, plant viruses, and insect viruses that appear
+# in sequencing databases but have no clinical significance in human infections
+# Add new phage names here if they appear in negative controls
 EXCLUDE_VIRAL = [
     "phage", "bacteriophage", "gihfavirus", "siphoviridae",
     "myoviridae", "podoviridae", "caudovirales", "leviviridae",
@@ -35,6 +49,12 @@ EXCLUDE_VIRAL = [
 ]
 
 def parse_viral_report(path, min_reads=50, min_pct=0.1):
+    """
+    Parse Kraken2 viral report and filter to clinically significant viruses.
+    min_reads: minimum read count to consider a detection (default 50)
+    min_pct: minimum abundance percentage (default 0.1%)
+    Returns list of dictionaries with virus name, reads, abundance, significance
+    """
     results = []
     if not os.path.exists(path):
         return results
@@ -47,14 +67,16 @@ def parse_viral_report(path, min_reads=50, min_pct=0.1):
             rank  = parts[3].strip()
             name  = parts[5].strip().lower()
 
+            # Only process species-level hits above minimum thresholds
             if rank != "S" or reads < min_reads or pct < min_pct:
                 continue
 
-            # Skip non-human pathogens
+            # Skip bacteriophages and non-human viruses using EXCLUDE_VIRAL list
             if any(ex in name for ex in EXCLUDE_VIRAL):
                 continue
 
-            # Check if clinically significant
+            # Match against CLINICAL_VIRUSES dictionary
+            # Only viruses in that list get reported clinically
             sig = None
             abbrev = None
             for key, info in CLINICAL_VIRUSES.items():
@@ -75,6 +97,11 @@ def parse_viral_report(path, min_reads=50, min_pct=0.1):
     return sorted(results, key=lambda x: -x["reads"])
 
 def viral_report(sample, outdir):
+    """
+    Generate clinical viral screening report for a sample.
+    Reads Kraken2 viral classification output, filters to clinical pathogens,
+    prints formatted report to stdout, and updates the summary JSON.
+    """
     viral_path = f"{outdir}/bact_results/{sample}_viral_report.txt"
     results    = parse_viral_report(viral_path)
 
@@ -96,7 +123,8 @@ def viral_report(sample, outdir):
     print(f"\n  Total clinically significant viruses: {len(results)}")
     print(f"{'='*65}")
 
-    # Update summary json
+    # Update the sample summary JSON with viral findings
+    # Top 3 viral results stored for inclusion in final clinical report
     json_path = f"{outdir}/{sample}_summary.json"
     if os.path.exists(json_path):
         with open(json_path) as f:
