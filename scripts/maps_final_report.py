@@ -1,3 +1,27 @@
+#!/usr/bin/env python3
+"""
+MAPS Final Clinical Report - maps_final_report.py
+Generates the ranked pathogen report used for clinical interpretation.
+This is the primary output physicians use to make treatment decisions.
+
+Key functions:
+  - Merges bacterial, fungal, and supplemental DB results
+  - Applies 3% abundance threshold for clinical reporting
+  - Applies genus-level naming for organisms below 70% AI confidence
+  - Applies specimen-type specific scoring adjustments
+
+Supplemental DB logic (S. cohnii and B. licheniformis):
+  - S. cohnii: only added if main DB has <500 reads of known pathogenic Staph
+  - B. licheniformis: always added if >=1% abundance and not in main DB
+
+Genus-level naming:
+  - Organisms with ensemble AI score <70% reported as "Genus sp."
+  - Full species name reported when score >=70%
+
+Usage: python3 maps_final_report.py SAMPLE OUTDIR HUMAN_PCT SPECIMEN_TYPE
+Output: OUTDIR/SAMPLE_final_report.csv and OUTDIR/SAMPLE_summary.json
+"""
+
 import pandas as pd
 import sys
 import os
@@ -15,9 +39,11 @@ import sys
 import json
 from datetime import datetime
 
-sample  = sys.argv[1]
+# Command line arguments
+sample  = sys.argv[1]       # Sample name
+outdir  = sys.argv[2]       # Output directory
 outdir  = sys.argv[2]
-specimen_type = sys.argv[3] if len(sys.argv) > 3 else "unknown"
+specimen_type = sys.argv[3] if len(sys.argv) > 3 else "unknown"  # Clinical specimen type
 
 
 def apply_confidence_naming(organism, ai_score):
@@ -38,9 +64,15 @@ def apply_confidence_naming(organism, ai_score):
         return f"{prefix}{parts[0]} sp."
     return organism
 
+# Load contaminant filter list (137 environmental/reagent organisms to exclude)
+# Located at ~/maps/filter_list.txt — add new contaminants here
 with open(os.path.expanduser("~/maps/filter_list.txt")) as f:
     EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 
+# Clinical pathogen scores — prior probability that organism is a true pathogen
+# Scale 0.0-1.0: 1.0 = always pathogenic, 0.4 = common contaminant
+# Used to weight AI confidence scores for clinical reporting
+# To add new organisms: append to this dictionary with appropriate score
 PATHOGEN_SCORES = {
     "pseudomonas aeruginosa": 1.0, "staphylococcus aureus": 1.0,
     "escherichia coli": 0.9,       "klebsiella pneumoniae": 1.0,
@@ -55,17 +87,33 @@ PATHOGEN_SCORES = {
 }
 
 def get_pathogen_score(org):
+    """
+    Look up clinical pathogen score for an organism.
+    Returns 0.4 (default) for organisms not in PATHOGEN_SCORES.
+    Higher score = higher prior probability of being a true pathogen.
+    """
     org = str(org).lower()
     for k, v in PATHOGEN_SCORES.items():
         if k in org: return v
     return 0.4
 
 def get_is_fungal(org):
+    """
+    Check if organism is a clinically significant fungus.
+    Used as a binary feature (0/1) in the AI model.
+    Add new fungal pathogens to the list if needed.
+    """
     return 1 if any(f in org.lower() for f in
         ["aspergillus fumigatus","candida","fusarium oxysporum","pneumocystis",
          "histoplasma","mucor mucedo","scedosporium","coccidioides","lomentospora"]) else 0
 
 def parse_report(path, min_reads=50):
+    """
+    Parse Kraken2 report file and return species-level detections.
+    Filters to species rank (S) with minimum 50 reads.
+    Excludes organisms in the EXCLUDE contaminant list.
+    Returns dict: {organism_name: (abundance_pct, read_count)}
+    """
     rows = {}
     if not os.path.exists(path): return rows
     with open(path) as f:
@@ -79,11 +127,15 @@ def parse_report(path, min_reads=50):
                     rows[name] = (pct, reads)
     return rows
 
+# Load results from all three Kraken2 databases
+# bact = standard bacterial DB, fung = fungal DB, supp_raw = supplemental DB
 bact = parse_report(f"{outdir}/bact_results/{sample}_bact_report.txt")
 fung = parse_report(f"{outdir}/fungi_results/{sample}_fungi_report.txt")
 supp_raw = parse_report(f"{outdir}/bact_results/{sample}_extra_report.txt")
 
-# Check main DB Staphylococcus read counts
+# Check how many reads from known pathogenic Staphylococcus species are in main DB
+# This determines whether S. cohnii from supplemental DB should be included
+# If main DB already has dominant Staph (>500 reads), S. cohnii is likely noise
 KNOWN_STAPH = ['aureus', 'epidermidis', 'lugdunensis', 'saprophyticus',
                'haemolyticus', 'capitis', 'warneri', 'caprae',
                'hominis', 'pasteuri', 'pettenkoferi', 'simulans', 'xylosus']
@@ -105,11 +157,15 @@ for org, (pct, reads) in supp_raw.items():
     if org not in bact or bact[org][1] < reads:
         bact[org] = (pct, reads)
 
+# Get human DNA percentage and total read count for quality assessment
+# Primary source: QC JSON generated in Step 3b
+# Fallback: parse Kraken2 human depletion report directly
 human_report = f"{outdir}/human_depleted/{sample}_human_report.txt"
-human_pct = 20.0
-total_raw = 100000
+human_pct = 20.0   # Default value if QC data not available
+total_raw = 100000  # Default value if QC data not available
 
-# Read from QC json first — most accurate source
+# Read from QC JSON first — most accurate source
+# Falls back to parsing Kraken2 report if QC JSON not found
 qc_path = f"{outdir}/{sample}_qc.json"
 if os.path.exists(qc_path):
     with open(qc_path) as f:
@@ -126,8 +182,11 @@ elif os.path.exists(human_report):
                 try: total_raw = int(parts[1])
                 except: pass
 
+# Estimate microbial read count from total reads minus human fraction
 microbial_reads_est = total_raw * (1 - human_pct/100)
 
+# Normalize bacterial and fungal abundances to relative percentages
+# Then add prefixes and combine into single ranked series
 bact_df = pd.Series({k: v[0] for k,v in bact.items()})
 fung_df = pd.Series({k: v[0] for k,v in fung.items()})
 if bact_df.sum() > 0: bact_df = bact_df / bact_df.sum() * 100
@@ -135,9 +194,11 @@ if fung_df.sum() > 0: fung_df = fung_df / fung_df.sum() * 100
 bact_df.index = ["[BACT] " + x for x in bact_df.index]
 fung_df.index = ["[FUNG] " + x for x in fung_df.index]
 combined = pd.concat([bact_df, fung_df]).sort_values(ascending=False)
+# Apply 3% minimum abundance threshold for clinical reporting
 above    = combined[combined >= 3.0]
 
-# Quality flag
+# Assign quality flag based on microbial read count and human DNA percentage
+# CRITICAL: results unreliable, LOW: interpret with caution, PASS: acceptable
 if microbial_reads_est < 1000:
     quality_flag = "CRITICAL"
     quality_msg  = f"Fewer than 1,000 microbial reads ({microbial_reads_est:,.0f}). Results unreliable."
@@ -154,7 +215,9 @@ else:
     quality_flag = "GOOD"
     quality_msg  = f"Sufficient microbial reads ({microbial_reads_est:,.0f}). Human DNA: {human_pct:.1f}%."
 
-# Infection type
+# Classify infection type based on number of organisms above threshold
+# MONOMICROBIAL: single pathogen, POLYMICROBIAL: multiple pathogens
+# DOMINATED: one organism clearly dominant, COMPLEX: truly mixed infection
 above_list = [(org, pct) for org, pct in above.items()]
 if len(above_list) == 0:
     infection_type = "NO DETECTION"
@@ -170,7 +233,9 @@ else:
     else:
         infection_type = "COMPLEX POLYMICROBIAL"
 
-# AI ranking
+# Load AI model and rank organisms by composite score
+# Composite = (AI probability * 0.40) + (abundance * 0.35) + (pathogen score * 0.25)
+# Top 15 organisms from combined bacterial+fungal results are scored
 model_path = os.path.expanduser("~/maps/models/maps_ai_model.pkl")
 ranked_results = []
 
@@ -179,6 +244,9 @@ if os.path.exists(model_path):
     le       = joblib.load(os.path.expanduser("~/maps/models/maps_label_encoder.pkl"))
     features = joblib.load(os.path.expanduser("~/maps/models/maps_features.pkl"))
 
+    # Import specimen-type exclusion function
+    # Some organisms are biologically implausible in certain specimen types
+    # e.g. gut bacteria in synovial fluid are likely contaminants
     try:
         from maps_specimen_scores import should_exclude
     except:
@@ -193,6 +261,8 @@ if os.path.exists(model_path):
         try: stype_enc = le.transform([specimen_type])[0]
         except: stype_enc = 0
 
+        # Build feature vector for AI model prediction
+        # Must match exactly the 11 features used during model training
         X = pd.DataFrame([[pct, human_pct, microbial_reads_est, ps,
                             1 if pct >= 3.0 else 0,
                             1 if human_pct > 50 else 0,
@@ -203,6 +273,7 @@ if os.path.exists(model_path):
         composite = (prob * 0.40) + (min(pct/100,1.0) * 0.35) + (ps * 0.25)
         tier      = "HIGH" if prob >= 0.70 else "MODERATE" if prob >= 0.40 else "LOW"
 
+        # Apply genus-level naming if AI confidence below 70%
         display_org = apply_confidence_naming(org, prob)
         ranked_results.append({
             "rank": 0, "organism": display_org,
@@ -217,7 +288,8 @@ if os.path.exists(model_path):
     ranked_results = sorted(ranked_results, key=lambda x: -x["composite_rank"])
     for i, r in enumerate(ranked_results): r["rank"] = i + 1
 
-# Clinical summary
+# Generate plain-language clinical summary based on top organism
+# Used in the final report and stored in summary JSON for database
 if ranked_results and ranked_results[0]["above_3pct"] == "YES":
     top      = ranked_results[0]
     org_name = top["organism"].replace("[BACT] ","").replace("[FUNG] ","")
@@ -235,7 +307,8 @@ if ranked_results and ranked_results[0]["above_3pct"] == "YES":
 else:
     clinical_summary = "No pathogen detected above 3% threshold."
 
-# Print report
+# Print formatted clinical report to stdout
+# This output is captured by the pipeline and shown in terminal
 print(f"\n{'='*70}")
 print(f"MAPS FINAL REPORT — {sample}")
 print(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
@@ -257,11 +330,15 @@ if ranked_results:
 
 print(f"\n{'='*70}")
 
-# Save
+# Save ranked results to CSV and summary JSON
+# CSV used by downstream steps (maps_predict.py, maps_ensemble.py, maps_stats.py)
+# JSON used by maps_database.py to store results in SQLite
 df_out   = pd.DataFrame(ranked_results)
 csv_path = f"{outdir}/{sample}_final_report.csv"
 df_out.to_csv(csv_path, index=False)
 
+# Build summary dictionary for JSON output
+# This is the primary data structure passed to maps_database.py
 top_result = ranked_results[0] if ranked_results else {}
 summary = {
     "sample":              sample,
