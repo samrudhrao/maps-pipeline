@@ -1,3 +1,20 @@
+#!/usr/bin/env python3
+"""
+MAPS AI Prediction - maps_predict.py
+Step 14 of the MAPS pipeline — Random Forest pathogen prediction.
+Scores each detected organism using the trained RF model and ranks by composite score.
+
+Composite score = (AI probability * 0.40) + (abundance * 0.35) + (pathogen score * 0.25)
+Confidence tiers: HIGH >=70%, MODERATE 40-69%, LOW <40%
+Genus-level naming applied for organisms below 70% AI confidence.
+
+Primary input: OUTDIR/SAMPLE_abundance.csv (generated in Step 9)
+Fallback input: Kraken2 report files (if abundance CSV not available)
+
+Usage: python3 maps_predict.py SAMPLE OUTDIR HUMAN_PCT SPECIMEN_TYPE
+Output: printed to stdout
+"""
+
 import pandas as pd
 import sys
 import os
@@ -10,6 +27,11 @@ import joblib
 import os
 import sys
 
+# Load pre-trained Random Forest model and associated files
+# Model trained on confirmed clinical samples — retrain when new samples added
+# maps_ai_model.pkl: Random Forest classifier
+# maps_label_encoder.pkl: encodes specimen type as numeric feature
+# maps_features.pkl: feature names in correct order for model input
 model    = joblib.load(os.path.expanduser("~/maps/models/maps_ai_model.pkl"))
 le       = joblib.load(os.path.expanduser("~/maps/models/maps_label_encoder.pkl"))
 features = joblib.load(os.path.expanduser("~/maps/models/maps_features.pkl"))
@@ -49,6 +71,8 @@ PATHOGEN_SCORES = {
     "none": 0.0,
 }
 
+# Minimum abundance threshold for clinical reporting
+# Organisms below 3% are scored but not flagged as above threshold
 THRESHOLD = 3.0
 
 def get_pathogen_score(org):
@@ -77,7 +101,15 @@ def parse_report(path, min_reads=50):
     return rows
 
 def predict(sample, outdir, human_pct=20.0):
-    # Use abundance CSV — already has supplemental DB merged correctly by pipeline
+    """
+    Run RF model prediction on all detected organisms.
+    Reads from abundance CSV for consistency with other pipeline steps.
+    Falls back to Kraken2 reports if abundance CSV not found.
+    Returns sorted list of organism prediction dictionaries.
+    """
+    # Primary data source: abundance CSV from Step 9
+    # This ensures supplemental DB organisms (S. cohnii, B. licheniformis)
+    # are included consistently with all other pipeline steps
     bact = {}
     fung = {}
     abundance_path = f"{outdir}/{sample}_abundance.csv"
@@ -90,7 +122,8 @@ def predict(sample, outdir, human_pct=20.0):
                 combined[row['organism']] = float(row['relative_abundance_%'])
         combined = pd.Series(combined)
     else:
-        # Fallback to Kraken2 reports if no abundance CSV
+        # Fallback to raw Kraken2 reports if abundance CSV not available
+        # This should rarely be needed in normal pipeline runs
         bact = parse_report(f"{outdir}/bact_results/{sample}_bact_report.txt")
         fung = parse_report(f"{outdir}/fungi_results/{sample}_fungi_report.txt")
         bact_df = pd.Series({k: v[0] for k,v in bact.items()})
@@ -106,7 +139,8 @@ def predict(sample, outdir, human_pct=20.0):
     total_reads     = sum(v[1] for v in list(bact.values())) if bact else 100000
     microbial_reads = total_reads * (1 - human_pct/100)
 
-    # Import specimen exclusion check
+    # Import specimen-type exclusion function
+    # Filters out organisms that are biologically implausible for the specimen type
     try:
         from maps_specimen_scores import should_exclude
     except:
@@ -170,6 +204,11 @@ def predict(sample, outdir, human_pct=20.0):
     return results
 
 def detect_specimen_type(sample):
+    """
+    Infer specimen type from sample name if not explicitly provided.
+    Matches common abbreviations in sample naming conventions at BSW.
+    Returns specimen type string for scoring adjustments.
+    """
     sample_lower = sample.lower()
     if "syn" in sample_lower: return "synovial"
     if "pla" in sample_lower: return "plasma"
@@ -180,6 +219,8 @@ def detect_specimen_type(sample):
     return "unknown"
 
 if __name__ == "__main__":
+    # Parse command line arguments
+    # human_pct read from QC JSON if available, otherwise from argv or default 20%
     sample    = sys.argv[1]
     outdir    = sys.argv[2]
     specimen_type = sys.argv[4] if len(sys.argv) > 4 else "unknown"
