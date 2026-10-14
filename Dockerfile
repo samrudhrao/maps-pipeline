@@ -8,9 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
 # ─── Additional bioinformatics tools ──────────────────────────────────
-RUN rm -f /etc/resolv.conf && \
-    echo "nameserver 8.8.8.8" > /etc/resolv.conf && \
-    apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y \
     wget curl git unzip python3 python3-pip \
     fastp samtools kraken2 multiqc minimap2 \
     ncbi-blast+ default-jre \
@@ -41,14 +39,13 @@ RUN pip3 install --no-cache-dir \
 WORKDIR /maps
 COPY full_pipeline.sh .
 COPY scripts/ ./scripts/
-# Models mounted at runtime from Azure Blob Storage
 COPY filter_list.txt .
 RUN chmod +x full_pipeline.sh
 
 # ─── Database mount points ────────────────────────────────────────────
 RUN mkdir -p /maps/kraken2_db /maps/kraken2_db_fungal_refseq \
     /maps/kraken2_db_extra /maps/kraken2_db_viral \
-    /maps/output /maps/ref_genomes /tmp/maps_runs
+    /maps/output /maps/ref_genomes /maps/models /tmp/maps_runs
 
 EXPOSE 8501
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
