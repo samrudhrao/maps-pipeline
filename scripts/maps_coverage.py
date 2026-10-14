@@ -10,7 +10,7 @@ automatically disqualify a detection.
 
 How it works:
   1. For each organism in abundance CSV, looks up RefSeq reference genome
-  2. Downloads reference genome if not cached (cached in ~/maps/ref_genomes/)
+  2. Downloads reference genome if not cached (cached in /maps/ref_genomes/)
   3. Aligns human-depleted reads to reference using Minimap2
   4. Calculates % of reference genome covered by at least 1 read
   5. Reports breadth alongside abundance for physician interpretation
@@ -22,7 +22,7 @@ Expected breadth values in clinical metagenomics (short-read, 200-500k reads):
   These thresholds are based on BSW validation data — may vary by sample type
 
 To add new organisms: add entry to REFSEQ_MAP with NCBI RefSeq accession
-Reference genomes cached in: ~/maps/ref_genomes/
+Reference genomes cached in: /maps/ref_genomes/
 Requires: minimap2, samtools, NCBI datasets CLI
 
 Usage: python3 maps_coverage.py SAMPLE OUTDIR R1 [R2]
@@ -36,7 +36,7 @@ OUTDIR   = sys.argv[2]
 READS_R1 = sys.argv[3]
 READS_R2 = sys.argv[4] if len(sys.argv) > 4 else None
 THREADS  = 8
-CACHE_DIR = os.path.expanduser("~/maps/ref_genomes")
+CACHE_DIR = os.path.expanduser("/maps/ref_genomes")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 # RefSeq accessions for common clinical organisms
@@ -74,7 +74,7 @@ REFSEQ_MAP = {
 def get_genome(org_name):
     """
     Get path to reference genome for an organism.
-    Downloads from NCBI if not already cached in ~/maps/ref_genomes/
+    Downloads from NCBI if not already cached in /maps/ref_genomes/
     Returns path to gzipped FASTA file or None if organism not in REFSEQ_MAP.
     Genomes are cached after first download — no re-downloading on subsequent runs.
     """

@@ -6,7 +6,7 @@ LABEL description="MAPS Clinical Metagenomics Pipeline"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
-ENV HOME=/maps
+ENV MAPS_DIR=/maps
 
 # ─── Additional bioinformatics tools ──────────────────────────────────
 RUN apt-get update && apt-get install -y \

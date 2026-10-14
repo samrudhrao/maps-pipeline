@@ -28,7 +28,7 @@ outdir = sys.argv[2]
 
 # Load contaminant exclusion list
 # 137 environmental organisms filtered from results
-with open(os.path.expanduser("~/maps/filter_list.txt")) as f:
+with open(os.path.expanduser("/maps/filter_list.txt")) as f:
     EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 
 # Clinical pathogen prior probability scores
@@ -74,14 +74,14 @@ def parse_report(path, min_reads=50):
 
 # Load trained Random Forest model
 # If model not found pipeline exits gracefully with a warning
-model_path = os.path.expanduser("~/maps/models/maps_ai_model.pkl")
+model_path = os.path.expanduser("/maps/models/maps_ai_model.pkl")
 if not os.path.exists(model_path):
     print("  AI model not found")
     sys.exit(1)
 
 model    = joblib.load(model_path)
-le       = joblib.load(os.path.expanduser("~/maps/models/maps_label_encoder.pkl"))
-features = joblib.load(os.path.expanduser("~/maps/models/maps_features.pkl"))
+le       = joblib.load(os.path.expanduser("/maps/models/maps_label_encoder.pkl"))
+features = joblib.load(os.path.expanduser("/maps/models/maps_features.pkl"))
 
 # Use abundance CSV as primary data source
 # Contains supplemental DB organisms already merged with correct logic

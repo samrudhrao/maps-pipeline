@@ -36,7 +36,7 @@ def fetch_genomes(organism, db_type="fungal", max_genomes=3):
     taxid = taxon_results["IdList"][0] if taxon_results["IdList"] else "0"
     print(f"  Taxid: {taxid}")
 
-    out_dir = os.path.expanduser("~/maps/fungal_genomes")
+    out_dir = os.path.expanduser("/maps/fungal_genomes")
     os.makedirs(out_dir, exist_ok=True)
 
     downloaded = []
@@ -85,7 +85,7 @@ def add_to_db(downloaded, db_path):
 if __name__ == "__main__":
     organism = sys.argv[1]
     db_type  = sys.argv[2] if len(sys.argv) > 2 else "fungal"
-    db_path  = os.path.expanduser("~/maps/kraken2_db_fungal_refseq")
+    db_path  = os.path.expanduser("/maps/kraken2_db_fungal_refseq")
     result, taxid = fetch_genomes(organism, db_type)
     if result:
         print(f"\nAdding {len(result)} genomes to database...")

@@ -25,7 +25,7 @@ Output: OUTDIR/SAMPLE_final_report.csv and OUTDIR/SAMPLE_summary.json
 import pandas as pd
 import sys
 import os
-sys.path.insert(0, os.path.expanduser('~/maps/scripts'))
+sys.path.insert(0, os.path.expanduser('/maps/scripts'))
 try:
     from maps_specimen_scores import get_specimen_adjusted_score, detect_specimen_type
 except: 
@@ -65,8 +65,8 @@ def apply_confidence_naming(organism, ai_score):
     return organism
 
 # Load contaminant filter list (137 environmental/reagent organisms to exclude)
-# Located at ~/maps/filter_list.txt — add new contaminants here
-with open(os.path.expanduser("~/maps/filter_list.txt")) as f:
+# Located at /maps/filter_list.txt — add new contaminants here
+with open(os.path.expanduser("/maps/filter_list.txt")) as f:
     EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 
 # Clinical pathogen scores — prior probability that organism is a true pathogen
@@ -236,13 +236,13 @@ else:
 # Load AI model and rank organisms by composite score
 # Composite = (AI probability * 0.40) + (abundance * 0.35) + (pathogen score * 0.25)
 # Top 15 organisms from combined bacterial+fungal results are scored
-model_path = os.path.expanduser("~/maps/models/maps_ai_model.pkl")
+model_path = os.path.expanduser("/maps/models/maps_ai_model.pkl")
 ranked_results = []
 
 if os.path.exists(model_path):
     model    = joblib.load(model_path)
-    le       = joblib.load(os.path.expanduser("~/maps/models/maps_label_encoder.pkl"))
-    features = joblib.load(os.path.expanduser("~/maps/models/maps_features.pkl"))
+    le       = joblib.load(os.path.expanduser("/maps/models/maps_label_encoder.pkl"))
+    features = joblib.load(os.path.expanduser("/maps/models/maps_features.pkl"))
 
     # Import specimen-type exclusion function
     # Some organisms are biologically implausible in certain specimen types

@@ -16,7 +16,7 @@ Two main functions:
      - Anomaly does NOT invalidate results — flags for manual review
 
 To retrain anomaly model: update training data in train_anomaly_model()
-and delete ~/maps/models/maps_anomaly_model.pkl to force retraining.
+and delete /maps/models/maps_anomaly_model.pkl to force retraining.
 
 Usage: python3 maps_stats.py SAMPLE OUTDIR [SPECIMEN_TYPE]
 Output: OUTDIR/SAMPLE_stats.json and OUTDIR/SAMPLE_confidence_intervals.csv
@@ -78,7 +78,7 @@ def train_anomaly_model():
     """
     Train Isolation Forest anomaly detector on known BSW clinical samples.
     Training data: 26 confirmed samples with known abundance, human_pct, total_reads.
-    Model saved to ~/maps/models/maps_anomaly_model.pkl
+    Model saved to /maps/models/maps_anomaly_model.pkl
     Called automatically if model file not found.
     To retrain: delete the pkl file and run any sample through the pipeline.
     """
@@ -122,7 +122,7 @@ def train_anomaly_model():
     iso = IsolationForest(n_estimators=200, contamination=0.15, random_state=42)
     iso.fit(X)
 
-    model_path = os.path.expanduser("~/maps/models/maps_anomaly_model.pkl")
+    model_path = os.path.expanduser("/maps/models/maps_anomaly_model.pkl")
     joblib.dump(iso, model_path)
     return iso
 
@@ -135,7 +135,7 @@ def detect_anomaly(abundance, human_pct, total_reads):
     Returns dict with is_anomaly, score, severity, reason
     """
     """Check if sample looks anomalous vs training data"""
-    model_path = os.path.expanduser("~/maps/models/maps_anomaly_model.pkl")
+    model_path = os.path.expanduser("/maps/models/maps_anomaly_model.pkl")
 
     if not os.path.exists(model_path):
         iso = train_anomaly_model()
@@ -171,7 +171,7 @@ def detect_anomaly(abundance, human_pct, total_reads):
 # Runs confidence intervals and anomaly detection for a sample
 # Called by full_pipeline.sh at Step 16
 def run_stats(sample, outdir):
-    with open(os.path.expanduser("~/maps/filter_list.txt")) as f:
+    with open(os.path.expanduser("/maps/filter_list.txt")) as f:
         EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 
     def parse_report(path, min_reads=50):
@@ -213,7 +213,7 @@ def run_stats(sample, outdir):
     # e.g. gut bacteria should not appear in synovial fluid results
     try:
         import sys as _sys
-        _sys.path.insert(0, os.path.expanduser("~/maps/scripts"))
+        _sys.path.insert(0, os.path.expanduser("/maps/scripts"))
         from maps_specimen_scores import should_exclude
         bact = {k:v for k,v in bact.items() if not should_exclude(k, specimen_type)}
         fung = {k:v for k,v in fung.items() if not should_exclude(k, specimen_type)}

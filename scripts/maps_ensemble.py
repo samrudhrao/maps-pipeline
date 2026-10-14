@@ -13,7 +13,7 @@ Supplemental DB logic (same as full_pipeline.sh):
   - S. cohnii: only added if main DB has <500 reads of known pathogenic Staph
   - B. licheniformis: always added if >=1% abundance
 
-To retrain models: run the model training script in ~/maps/models/
+To retrain models: run the model training script in /maps/models/
 Model files: maps_ai_model.pkl (RF), maps_xgb_model.pkl (XGB),
              maps_shap_explainer.pkl (RF SHAP), maps_xgb_shap_explainer.pkl (XGB SHAP)
 
@@ -24,7 +24,7 @@ Output: OUTDIR/SAMPLE_ensemble_scores.csv
 import pandas as pd
 import sys
 import os
-sys.path.insert(0, os.path.expanduser('~/maps/scripts'))
+sys.path.insert(0, os.path.expanduser('/maps/scripts'))
 try:
     from maps_specimen_scores import get_specimen_adjusted_score, detect_specimen_type
 except: 
@@ -39,15 +39,15 @@ import sys
 # Load all model files
 # RF and XGB models for ensemble prediction
 # SHAP explainers for feature importance interpretation
-RF_MODEL  = joblib.load(os.path.expanduser("~/maps/models/maps_ai_model.pkl"))
-XGB_MODEL = joblib.load(os.path.expanduser("~/maps/models/maps_xgb_model.pkl"))
-LE        = joblib.load(os.path.expanduser("~/maps/models/maps_label_encoder.pkl"))
-FEATURES  = joblib.load(os.path.expanduser("~/maps/models/maps_features.pkl"))
-RF_SHAP   = joblib.load(os.path.expanduser("~/maps/models/maps_shap_explainer.pkl"))
-XGB_SHAP  = joblib.load(os.path.expanduser("~/maps/models/maps_xgb_shap_explainer.pkl"))
+RF_MODEL  = joblib.load(os.path.expanduser("/maps/models/maps_ai_model.pkl"))
+XGB_MODEL = joblib.load(os.path.expanduser("/maps/models/maps_xgb_model.pkl"))
+LE        = joblib.load(os.path.expanduser("/maps/models/maps_label_encoder.pkl"))
+FEATURES  = joblib.load(os.path.expanduser("/maps/models/maps_features.pkl"))
+RF_SHAP   = joblib.load(os.path.expanduser("/maps/models/maps_shap_explainer.pkl"))
+XGB_SHAP  = joblib.load(os.path.expanduser("/maps/models/maps_xgb_shap_explainer.pkl"))
 
 
-with open(os.path.expanduser("~/maps/filter_list.txt")) as f:
+with open(os.path.expanduser("/maps/filter_list.txt")) as f:
     EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 def apply_confidence_naming(organism, ai_score):
     """

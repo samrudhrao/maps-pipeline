@@ -90,7 +90,7 @@ echo "  fastp done"
 echo "Step 3: Human read depletion..."
 if [ "$PLATFORM" = "iontorrent" ]; then
     kraken2 \
-        --db ~/maps/kraken2_db \
+        --db /maps/kraken2_db \
         --gzip-compressed \
         --report $OUTDIR/human_depleted/${SAMPLE}_human_report.txt \
         --output /dev/null \
@@ -103,7 +103,7 @@ if [ "$PLATFORM" = "iontorrent" ]; then
        $OUTDIR/human_depleted/${SAMPLE}_clean_2.fastq
 else
     kraken2 \
-        --db ~/maps/kraken2_db \
+        --db /maps/kraken2_db \
         --paired --gzip-compressed \
         --report $OUTDIR/human_depleted/${SAMPLE}_human_report.txt \
         --output /dev/null \
@@ -118,7 +118,7 @@ echo "  Human depletion done"
 # Hard fail criteria: <50k reads, >90% human DNA, <1000 microbial reads, <50% Q30
 # Pipeline stops here if sample fails — no results generated
 echo "Step 3b: QC check..."
-python3 ~/maps/scripts/maps_qc.py $SAMPLE $OUTDIR
+python3 /maps/scripts/maps_qc.py $SAMPLE $OUTDIR
 QC_STATUS=$(python3 -c "import json; d=json.load(open('$OUTDIR/${SAMPLE}_qc.json')); print(d['status'])" 2>/dev/null)
 if [ "$QC_STATUS" = "FAIL" ]; then
     echo "  ✗ QC FAILED — stopping pipeline"
@@ -133,7 +133,7 @@ echo "  QC done"
 echo "Step 4: Bacterial classification..."
 if [ "$PLATFORM" = "iontorrent" ]; then
     kraken2 \
-        --db ~/maps/kraken2_db \
+        --db /maps/kraken2_db \
         --gzip-compressed \
         --report $OUTDIR/bact_results/${SAMPLE}_bact_report.txt \
         --output /dev/null \
@@ -141,7 +141,7 @@ if [ "$PLATFORM" = "iontorrent" ]; then
         $OUTDIR/fastp/${SAMPLE}_R1_clean.fastq.gz
 else
     kraken2 \
-        --db ~/maps/kraken2_db \
+        --db /maps/kraken2_db \
         --paired --gzip-compressed \
         --report $OUTDIR/bact_results/${SAMPLE}_bact_report.txt \
         --output /dev/null \
@@ -158,17 +158,17 @@ echo "Step 4b: Supplemental database classification..."
 STAPH_READS=$(grep -w "Staphylococcus$" $OUTDIR/bact_results/${SAMPLE}_bact_report.txt 2>/dev/null | awk '{print $2}' | head -1)
 STAPH_READS=${STAPH_READS:-0}
 STAPH_CHECK=$(awk "BEGIN {print ($STAPH_READS > 500) ? 1 : 0}")
-if [ "$STAPH_CHECK" = "1" ] && [ -d ~/maps/kraken2_db_extra ]; then
+if [ "$STAPH_CHECK" = "1" ] && [ -d /maps/kraken2_db_extra ]; then
     if [ "$PLATFORM" = "iontorrent" ]; then
         kraken2 \
-            --db ~/maps/kraken2_db_extra \
+            --db /maps/kraken2_db_extra \
             --report $OUTDIR/bact_results/${SAMPLE}_extra_report.txt \
             --output /dev/null \
             --threads 8 \
             $OUTDIR/human_depleted/${SAMPLE}_clean_1.fastq
     else
         kraken2 \
-            --db ~/maps/kraken2_db_extra \
+            --db /maps/kraken2_db_extra \
             --paired --confidence 0.1 \
             --report $OUTDIR/bact_results/${SAMPLE}_extra_report.txt \
             --output /dev/null \
@@ -188,14 +188,14 @@ fi
 echo "Step 5: Fungal classification..."
 if [ "$PLATFORM" = "iontorrent" ]; then
     kraken2 \
-        --db ~/maps/kraken2_db_fungal_refseq \
+        --db /maps/kraken2_db_fungal_refseq \
         --report $OUTDIR/fungi_results/${SAMPLE}_fungi_report.txt \
         --output /dev/null \
         --threads 8 \
         $OUTDIR/human_depleted/${SAMPLE}_clean_1.fastq
 else
     kraken2 \
-        --db ~/maps/kraken2_db_fungal_refseq \
+        --db /maps/kraken2_db_fungal_refseq \
         --paired \
         --report $OUTDIR/fungi_results/${SAMPLE}_fungi_report.txt \
         --output /dev/null \
@@ -211,14 +211,14 @@ echo "  Fungal classification done"
 echo "Step 5b: Viral classification..."
 if [ "$PLATFORM" = "iontorrent" ]; then
     kraken2 \
-        --db ~/maps/kraken2_db_viral \
+        --db /maps/kraken2_db_viral \
         --report $OUTDIR/bact_results/${SAMPLE}_viral_report.txt \
         --output /dev/null \
         --threads 8 \
         $OUTDIR/human_depleted/${SAMPLE}_clean_1.fastq
 else
     kraken2 \
-        --db ~/maps/kraken2_db_viral \
+        --db /maps/kraken2_db_viral \
         --paired \
         --report $OUTDIR/bact_results/${SAMPLE}_viral_report.txt \
         --output /dev/null \
@@ -234,7 +234,7 @@ awk '$4=="S" && $1>0.1 {print "   ", $1"%", $6, $7, $8}' \
 # Step 5c: Viral clinical report — filters and formats viral findings
 # Removes phages and non-pathogenic viruses, generates clinical summary
 echo "Step 5c: Viral screening report..."
-python3 ~/maps/scripts/maps_viral_report.py $SAMPLE $OUTDIR 2>/dev/null
+python3 /maps/scripts/maps_viral_report.py $SAMPLE $OUTDIR 2>/dev/null
 echo "  Viral screening done"
 
 # Step 6: Genome assembly — SPAdes de novo assembly of microbial reads
@@ -263,8 +263,8 @@ echo "  Assembly done"
 # Output: $OUTDIR/mlst/${SAMPLE}_mlst.txt
 echo "Step 7: MLST strain typing..."
 mlst \
-    --datadir ~/maps/mlst-2.23.0/db/pubmlst \
-    --blastdb ~/maps/mlst-2.23.0/db/blast/mlst \
+    --datadir /maps/mlst-2.23.0/db/pubmlst \
+    --blastdb /maps/mlst-2.23.0/db/blast/mlst \
     $OUTDIR/assembly/${SAMPLE}/scaffolds.fasta \
     > $OUTDIR/mlst/${SAMPLE}_mlst.txt 2>/dev/null
 cat $OUTDIR/mlst/${SAMPLE}_mlst.txt
@@ -294,7 +294,7 @@ abricate \
     --db resfinder \
     $OUTDIR/assembly/${SAMPLE}/scaffolds.fasta \
     >> $OUTDIR/virulence/${SAMPLE}_resistance.txt 2>/dev/null
-python3 ~/maps/scripts/maps_amr_report.py $SAMPLE $OUTDIR
+python3 /maps/scripts/maps_amr_report.py $SAMPLE $OUTDIR
 echo "  AMR detection done"
 
 # Step 9: Abundance report — calculates relative abundance of detected organisms
@@ -306,7 +306,7 @@ python3 << PYEOF
 import pandas as pd
 import os
 
-with open(os.path.expanduser("~/maps/filter_list.txt")) as f:
+with open(os.path.expanduser("/maps/filter_list.txt")) as f:
     EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 
 THRESHOLD = 3.0
@@ -411,7 +411,7 @@ if [ ! -f "$R1_CLEAN" ]; then
     R1_CLEAN=$OUTDIR/human_depleted/${SAMPLE}_clean.fastq
     R2_CLEAN=$R1_CLEAN
 fi
-python3 -W ignore ~/maps/scripts/maps_coverage.py $SAMPLE $OUTDIR $R1_CLEAN $R2_CLEAN 2>/dev/null
+python3 -W ignore /maps/scripts/maps_coverage.py $SAMPLE $OUTDIR $R1_CLEAN $R2_CLEAN 2>/dev/null
 echo "  Coverage breadth done"
 
 # Step 10: AI confidence scoring — Random Forest model scores each organism
@@ -419,7 +419,7 @@ echo "  Coverage breadth done"
 # Tiers: HIGH >=70%, MODERATE 40-69%, LOW <40%
 # Output: $OUTDIR/${SAMPLE}_ai_scores.csv
 echo "Step 10: AI confidence scoring..."
-python3 -W ignore ~/maps/scripts/run_ai_scoring.py $SAMPLE $OUTDIR
+python3 -W ignore /maps/scripts/run_ai_scoring.py $SAMPLE $OUTDIR
 echo "  AI scoring done"
 
 # Step 11: Co-infection detection — identifies polymicrobial infections
@@ -430,7 +430,7 @@ python3 << PYEOF
 import pandas as pd
 import os
 
-with open(os.path.expanduser("~/maps/filter_list.txt")) as f:
+with open(os.path.expanduser("/maps/filter_list.txt")) as f:
     EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 
 def parse_report(path, min_reads=50):
@@ -533,28 +533,28 @@ echo "  MultiQC done"
 # Includes AMR findings, virulence genes, low abundance detections
 # Output: $OUTDIR/${SAMPLE}_final_report.csv and ${SAMPLE}_summary.json
 echo "Step 13: Generating final clinical report..."
-python3 -W ignore ~/maps/scripts/maps_final_report.py $SAMPLE $OUTDIR $SPECIMEN_TYPE
+python3 -W ignore /maps/scripts/maps_final_report.py $SAMPLE $OUTDIR $SPECIMEN_TYPE
 echo "  Final report done"
 
 # Step 14: AI prediction — Random Forest predicts most likely pathogen
 # Reads from abundance CSV for consistency with all other steps
 # Output: printed to stdout and included in final report
 echo "Step 14: AI pathogen prediction..."
-python3 -W ignore ~/maps/scripts/maps_predict.py $SAMPLE $OUTDIR 20.0 $SPECIMEN_TYPE
+python3 -W ignore /maps/scripts/maps_predict.py $SAMPLE $OUTDIR 20.0 $SPECIMEN_TYPE
 echo "  Prediction done"
 
 # Step 14b: Ensemble prediction — RF (55%) + XGBoost (45%) weighted ensemble
 # SHAP values explain top 3 feature drivers per organism
 # Most reliable AI output — use this for clinical interpretation
 echo "Step 14b: Ensemble prediction (RF + XGBoost + SHAP)..."
-python3 -W ignore ~/maps/scripts/maps_ensemble.py $SAMPLE $OUTDIR 20.0 $SPECIMEN_TYPE
+python3 -W ignore /maps/scripts/maps_ensemble.py $SAMPLE $OUTDIR 20.0 $SPECIMEN_TYPE
 echo "  Ensemble done"
 
 # Step 15: Save to database — stores results in SQLite (maps_results.db)
 # Preserves existing SoC data if sample is rerun
 # Schema: see scripts/maps_database_schema.sql
 echo "Step 15: Saving to results database..."
-python3 ~/maps/scripts/maps_database.py save $SAMPLE $OUTDIR
+python3 /maps/scripts/maps_database.py save $SAMPLE $OUTDIR
 echo "  Database updated"
 
 
@@ -562,7 +562,7 @@ echo "  Database updated"
 # Isolation Forest anomaly detection flags unusual microbial profiles
 # Output: printed to stdout
 echo "Step 16: Statistical analysis (confidence intervals + anomaly detection)..."
-python3 -W ignore ~/maps/scripts/maps_stats.py $SAMPLE $OUTDIR $SPECIMEN_TYPE
+python3 -W ignore /maps/scripts/maps_stats.py $SAMPLE $OUTDIR $SPECIMEN_TYPE
 echo "  Stats done"
 
 echo ""

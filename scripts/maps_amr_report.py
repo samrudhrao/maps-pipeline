@@ -206,7 +206,7 @@ def classify_contig(contig_name, outdir, sample):
 
     try:
         result = subprocess.run(
-            ["kraken2", "--db", os.path.expanduser("~/maps/kraken2_db"),
+            ["kraken2", "--db", os.path.expanduser("/maps/kraken2_db"),
              "--output", "/dev/stdout", tmp_path],
             capture_output=True, text=True, timeout=30
         )
