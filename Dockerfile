@@ -31,7 +31,7 @@ RUN git clone https://github.com/tseemann/mlst.git /opt/mlst \
 ENV PATH="/opt/mlst/bin:$PATH"
 
 # ─── Python packages ──────────────────────────────────────────────────
-RUN pip3 install --no-cache-dir --break-system-packages \
+RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed \
     pandas numpy scikit-learn xgboost shap \
     joblib streamlit biopython
 
