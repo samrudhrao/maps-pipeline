@@ -6,12 +6,13 @@ LABEL description="MAPS Clinical Metagenomics Pipeline"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
+ENV HOME=/maps
 
 # ─── Additional bioinformatics tools ──────────────────────────────────
 RUN apt-get update && apt-get install -y \
     wget curl git unzip python3 python3-pip \
     fastp samtools kraken2 multiqc minimap2 \
-    ncbi-blast+ default-jre \
+    fastqc ncbi-blast+ default-jre \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ─── NCBI Datasets CLI ────────────────────────────────────────────────
@@ -41,6 +42,9 @@ COPY full_pipeline.sh .
 COPY scripts/ ./scripts/
 COPY filter_list.txt .
 RUN chmod +x full_pipeline.sh
+
+# Create python symlink for SPAdes compatibility
+RUN ln -s /usr/bin/python3 /usr/bin/python || true
 
 # ─── Database mount points ────────────────────────────────────────────
 RUN mkdir -p /maps/kraken2_db /maps/kraken2_db_fungal_refseq \
