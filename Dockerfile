@@ -1,5 +1,5 @@
 # MAPS — Metagenomic Abundance and Pathogen Scoring
-FROM ubuntu:22.04
+FROM staphb/abricate:latest
 
 LABEL maintainer="Samrudh Rao <Samrudh.Rao@BSWHealth.org>"
 LABEL description="MAPS Clinical Metagenomics Pipeline"
@@ -7,13 +7,13 @@ LABEL description="MAPS Clinical Metagenomics Pipeline"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# ─── System tools + bioinformatics via apt ────────────────────────────
-RUN apt-get update && apt-get install -y \
+# ─── Additional bioinformatics tools ──────────────────────────────────
+RUN rm -f /etc/resolv.conf && \
+    echo "nameserver 8.8.8.8" > /etc/resolv.conf && \
+    apt-get update && apt-get install -y \
     wget curl git unzip python3 python3-pip \
     fastp samtools kraken2 multiqc minimap2 \
-    ncbi-blast+ default-jre perl \
-    libdbi-perl libxml-simple-perl \
-    any2fasta \
+    ncbi-blast+ default-jre \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ─── NCBI Datasets CLI ────────────────────────────────────────────────
@@ -26,10 +26,6 @@ RUN wget -q https://github.com/ablab/spades/releases/download/v3.15.5/SPAdes-3.1
     && mv SPAdes-3.15.5-Linux /opt/spades \
     && rm SPAdes-3.15.5-Linux.tar.gz
 ENV PATH="/opt/spades/bin:$PATH"
-
-# ─── ABRicate via apt ─────────────────────────────────────────────────
-RUN apt-get update && apt-get install -y abricate \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ─── MLST ─────────────────────────────────────────────────────────────
 RUN git clone https://github.com/tseemann/mlst.git /opt/mlst \
