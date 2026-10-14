@@ -85,12 +85,12 @@ bash full_pipeline.sh 151 \
 
 ## AI Scoring
 
-Two machine learning models trained on 26 confirmed clinical samples:
+MAPS uses a weighted ensemble of two machine learning models trained on confirmed BSW clinical samples:
 
-- **Random Forest** — 500 trees, 100% LOO cross-validation accuracy
-- **XGBoost** — 500 trees, 96.2% LOO cross-validation accuracy
+- **Random Forest** — provides robust pathogen probability scoring across diverse specimen types
+- **XGBoost** — gradient boosted model offering a complementary confidence estimate
 - **Ensemble** — RF (55%) + XGBoost (45%) weighted average
-- **SHAP explainability** — top 3 feature drivers reported per organism
+- **SHAP** — explains the top feature drivers behind each prediction for clinical transparency
 
 Confidence tiers:
 - HIGH ≥ 70%
