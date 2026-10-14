@@ -205,6 +205,34 @@ with tab1:
 
             st.info(f"🩺 **Clinical Summary:** {summary.get('clinical_summary','N/A')}")
 
+            # QC Results
+            qc_path = f"{outdir}/{sample_name}_qc.json"
+            if os.path.exists(qc_path):
+                with open(qc_path) as f:
+                    qc = json.load(f)
+                st.markdown("<h3 style='color:#003087;'>🔬 QC Report</h3>",
+                            unsafe_allow_html=True)
+                qc_status = qc.get("status","UNKNOWN")
+                if qc_status == "PASS":
+                    st.success(f"✅ QC Status: PASS")
+                else:
+                    st.error(f"❌ QC Status: {qc_status}")
+                q1, q2, q3, q4, q5, q6 = st.columns(6)
+                q1.metric("Total Reads",     f"{qc.get('total_reads',0):,}")
+                q2.metric("Human DNA",       f"{qc.get('human_pct',0):.1f}%")
+                q3.metric("Microbial Reads", f"{qc.get('microbial_reads',0):,}")
+                q4.metric("Q30 Rate",        f"{qc.get('q30_rate',0):.1f}%")
+                q5.metric("Duplication",     f"{qc.get('duplication_pct',0):.1f}%")
+                q6.metric("Insert Size",     f"{qc.get('insert_size',0)}bp")
+                checks = qc.get("checks", {})
+                if not checks.get("total_reads_ok", True):
+                    st.warning("⚠️ Total reads below minimum threshold (50,000)")
+                if not checks.get("human_pct_ok", True):
+                    st.warning("⚠️ Human DNA above maximum threshold (90%)")
+                if not checks.get("microbial_reads_ok", True):
+                    st.warning("⚠️ Microbial reads below minimum threshold (1,000)")
+                st.divider()
+
             # Pathogen table
             abundance_path = f"{outdir}/{sample_name}_abundance.csv"
             if os.path.exists(abundance_path):
