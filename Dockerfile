@@ -41,7 +41,7 @@ RUN pip3 install --no-cache-dir \
 WORKDIR /maps
 COPY full_pipeline.sh .
 COPY scripts/ ./scripts/
-COPY models/ ./models/
+# Models mounted at runtime from Azure Blob Storage
 COPY filter_list.txt .
 RUN chmod +x full_pipeline.sh
 
