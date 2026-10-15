@@ -1,4 +1,6 @@
 import streamlit as st
+import os as _os
+MAPS_HOME = "/maps" if _os.path.exists("/maps/kraken2_db") else _os.path.expanduser("~/maps")
 import subprocess
 import os
 import json
