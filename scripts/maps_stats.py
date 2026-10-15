@@ -26,6 +26,9 @@ import numpy as np
 import pandas as pd
 import joblib
 import os
+
+import os as _os
+MAPS_HOME = "/maps" if _os.path.exists("/maps/kraken2_db") else _os.path.expanduser("~/maps")
 import sys
 import json
 from scipy.stats import norm

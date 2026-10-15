@@ -1,4 +1,8 @@
 from Bio import Entrez, SeqIO
+import os
+
+import os as _os
+MAPS_HOME = "/maps" if _os.path.exists("/maps/kraken2_db") else _os.path.expanduser("~/maps")
 import os, sys, subprocess, re, time
 
 Entrez.email = "samrudh@bswhealth.org"

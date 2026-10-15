@@ -29,6 +29,10 @@ Usage: python3 maps_coverage.py SAMPLE OUTDIR R1 [R2]
 Output: OUTDIR/SAMPLE_coverage.json
 """
 
+import os
+
+import os as _os
+MAPS_HOME = "/maps" if _os.path.exists("/maps/kraken2_db") else _os.path.expanduser("~/maps")
 import os, sys, subprocess, csv, json, tempfile, shutil
 
 SAMPLE   = sys.argv[1]

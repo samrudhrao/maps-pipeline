@@ -24,6 +24,9 @@ Output: OUTDIR/SAMPLE_ensemble_scores.csv
 import pandas as pd
 import sys
 import os
+
+import os as _os
+MAPS_HOME = "/maps" if _os.path.exists("/maps/kraken2_db") else _os.path.expanduser("~/maps")
 sys.path.insert(0, os.path.expanduser(f'{MAPS_HOME}/scripts'))
 try:
     from maps_specimen_scores import get_specimen_adjusted_score, detect_specimen_type

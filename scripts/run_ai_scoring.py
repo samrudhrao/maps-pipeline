@@ -21,6 +21,9 @@ import joblib
 import numpy as np
 import pandas as pd
 import os
+
+import os as _os
+MAPS_HOME = "/maps" if _os.path.exists("/maps/kraken2_db") else _os.path.expanduser("~/maps")
 import sys
 
 sample = sys.argv[1]

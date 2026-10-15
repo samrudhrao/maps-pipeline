@@ -25,6 +25,9 @@ Database columns:
 import sqlite3
 import json
 import os
+
+import os as _os
+MAPS_HOME = "/maps" if _os.path.exists("/maps/kraken2_db") else _os.path.expanduser("~/maps")
 import sys
 from datetime import datetime
 
