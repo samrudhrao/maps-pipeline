@@ -122,7 +122,7 @@ def train_anomaly_model():
     iso = IsolationForest(n_estimators=200, contamination=0.15, random_state=42)
     iso.fit(X)
 
-    model_path = os.path.expanduser("/maps/models/maps_anomaly_model.pkl")
+    model_path = os.path.expanduser(f"{MAPS_HOME}/models/maps_anomaly_model.pkl")
     joblib.dump(iso, model_path)
     return iso
 
@@ -135,7 +135,7 @@ def detect_anomaly(abundance, human_pct, total_reads):
     Returns dict with is_anomaly, score, severity, reason
     """
     """Check if sample looks anomalous vs training data"""
-    model_path = os.path.expanduser("/maps/models/maps_anomaly_model.pkl")
+    model_path = os.path.expanduser(f"{MAPS_HOME}/models/maps_anomaly_model.pkl")
 
     if not os.path.exists(model_path):
         iso = train_anomaly_model()
@@ -171,7 +171,7 @@ def detect_anomaly(abundance, human_pct, total_reads):
 # Runs confidence intervals and anomaly detection for a sample
 # Called by full_pipeline.sh at Step 16
 def run_stats(sample, outdir):
-    with open(os.path.expanduser("/maps/filter_list.txt")) as f:
+    with open(os.path.expanduser(f"{MAPS_HOME}/filter_list.txt")) as f:
         EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 
     def parse_report(path, min_reads=50):
@@ -213,7 +213,7 @@ def run_stats(sample, outdir):
     # e.g. gut bacteria should not appear in synovial fluid results
     try:
         import sys as _sys
-        _sys.path.insert(0, os.path.expanduser("/maps/scripts"))
+        _sys.path.insert(0, os.path.expanduser(f"{MAPS_HOME}/scripts"))
         from maps_specimen_scores import should_exclude
         bact = {k:v for k,v in bact.items() if not should_exclude(k, specimen_type)}
         fung = {k:v for k,v in fung.items() if not should_exclude(k, specimen_type)}

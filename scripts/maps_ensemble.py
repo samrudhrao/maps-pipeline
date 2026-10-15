@@ -24,7 +24,7 @@ Output: OUTDIR/SAMPLE_ensemble_scores.csv
 import pandas as pd
 import sys
 import os
-sys.path.insert(0, os.path.expanduser('/maps/scripts'))
+sys.path.insert(0, os.path.expanduser(f'{MAPS_HOME}/scripts'))
 try:
     from maps_specimen_scores import get_specimen_adjusted_score, detect_specimen_type
 except: 
@@ -39,15 +39,15 @@ import sys
 # Load all model files
 # RF and XGB models for ensemble prediction
 # SHAP explainers for feature importance interpretation
-RF_MODEL  = joblib.load(os.path.expanduser("/maps/models/maps_ai_model.pkl"))
-XGB_MODEL = joblib.load(os.path.expanduser("/maps/models/maps_xgb_model.pkl"))
-LE        = joblib.load(os.path.expanduser("/maps/models/maps_label_encoder.pkl"))
-FEATURES  = joblib.load(os.path.expanduser("/maps/models/maps_features.pkl"))
-RF_SHAP   = joblib.load(os.path.expanduser("/maps/models/maps_shap_explainer.pkl"))
-XGB_SHAP  = joblib.load(os.path.expanduser("/maps/models/maps_xgb_shap_explainer.pkl"))
+RF_MODEL  = joblib.load(os.path.expanduser(f"{MAPS_HOME}/models/maps_ai_model.pkl"))
+XGB_MODEL = joblib.load(os.path.expanduser(f"{MAPS_HOME}/models/maps_xgb_model.pkl"))
+LE        = joblib.load(os.path.expanduser(f"{MAPS_HOME}/models/maps_label_encoder.pkl"))
+FEATURES  = joblib.load(os.path.expanduser(f"{MAPS_HOME}/models/maps_features.pkl"))
+RF_SHAP   = joblib.load(os.path.expanduser(f"{MAPS_HOME}/models/maps_shap_explainer.pkl"))
+XGB_SHAP  = joblib.load(os.path.expanduser(f"{MAPS_HOME}/models/maps_xgb_shap_explainer.pkl"))
 
 
-with open(os.path.expanduser("/maps/filter_list.txt")) as f:
+with open(os.path.expanduser(f"{MAPS_HOME}/filter_list.txt")) as f:
     EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 def apply_confidence_naming(organism, ai_score):
     """

@@ -148,7 +148,7 @@ with tab1:
         fail_reason  = ""
 
         cmd = [
-            "bash", os.path.expanduser("/maps/full_pipeline.sh"),
+            "bash", os.path.expanduser(f"{MAPS_HOME}/full_pipeline.sh"),
             sample_name, r1_path, r2_path, outdir, specimen_type
         ]
 

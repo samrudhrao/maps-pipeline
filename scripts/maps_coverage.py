@@ -36,7 +36,7 @@ OUTDIR   = sys.argv[2]
 READS_R1 = sys.argv[3]
 READS_R2 = sys.argv[4] if len(sys.argv) > 4 else None
 THREADS  = 8
-CACHE_DIR = os.path.expanduser("/maps/ref_genomes")
+CACHE_DIR = os.path.expanduser(f"{MAPS_HOME}/ref_genomes")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 # RefSeq accessions for common clinical organisms

@@ -18,7 +18,7 @@ import sys
 import os
 import json
 
-def qc_check(sample, outdir):
+def qc_check(sample, outdir, platform='illumina'):
     human_report    = f"{outdir}/human_depleted/{sample}_human_report.txt"
     fastp_json      = f"{outdir}/fastp/{sample}_fastp.json"
     human_pct       = 0.0
@@ -88,13 +88,17 @@ def qc_check(sample, outdir):
         ins_flag = "✓" if insert_size >= 50 else "⚠"
         print(f"  {ins_flag} Insert size: {insert_size}bp (informational)")
 
-    # Q30 below 50% is a hard fail
-    if q30_rate > 0 and q30_rate < 50:
+    # Q30 threshold depends on platform
+    # Illumina: hard fail below 50% (platform standard)
+    # Ion Torrent: hard fail below 5% (platform naturally lower Q30)
+    q30_min = 5.0 if platform == "iontorrent" else 50.0
+    if q30_rate > 0 and q30_rate < q30_min:
         passed = False
         status = "FAIL"
         print(f"\n  ✗ Q30 rate critically low ({q30_rate:.1f}%) — sequencing quality insufficient for reliable results")
     elif q30_rate > 0 and q30_rate < 70:
-        print(f"\n  ⚠ Q30 rate low ({q30_rate:.1f}%) — results should be interpreted with caution")
+        if platform != "iontorrent":
+            print(f"\n  ⚠ Q30 rate low ({q30_rate:.1f}%) — results should be interpreted with caution")
 
     # Reprint status header with correct pass/fail
     print(f"\n  Final QC status: {status}")
@@ -119,6 +123,7 @@ def qc_check(sample, outdir):
     return passed
 
 if __name__ == "__main__":
-    sample = sys.argv[1]
-    outdir = sys.argv[2]
-    qc_check(sample, outdir)
+    sample   = sys.argv[1]
+    outdir   = sys.argv[2]
+    platform = sys.argv[3] if len(sys.argv) > 3 else "illumina"
+    qc_check(sample, outdir, platform)

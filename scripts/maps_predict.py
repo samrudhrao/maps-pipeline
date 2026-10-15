@@ -18,7 +18,7 @@ Output: printed to stdout
 import pandas as pd
 import sys
 import os
-sys.path.insert(0, os.path.expanduser('/maps/scripts'))
+sys.path.insert(0, os.path.expanduser(f'{MAPS_HOME}/scripts'))
 try:
     from maps_specimen_scores import get_specimen_adjusted_score
 except: get_specimen_adjusted_score = lambda s,o,t: s
@@ -32,9 +32,9 @@ import sys
 # maps_ai_model.pkl: Random Forest classifier
 # maps_label_encoder.pkl: encodes specimen type as numeric feature
 # maps_features.pkl: feature names in correct order for model input
-model    = joblib.load(os.path.expanduser("/maps/models/maps_ai_model.pkl"))
-le       = joblib.load(os.path.expanduser("/maps/models/maps_label_encoder.pkl"))
-features = joblib.load(os.path.expanduser("/maps/models/maps_features.pkl"))
+model    = joblib.load(os.path.expanduser(f"{MAPS_HOME}/models/maps_ai_model.pkl"))
+le       = joblib.load(os.path.expanduser(f"{MAPS_HOME}/models/maps_label_encoder.pkl"))
+features = joblib.load(os.path.expanduser(f"{MAPS_HOME}/models/maps_features.pkl"))
 
 
 def apply_confidence_naming(organism, ai_score):
@@ -55,7 +55,7 @@ def apply_confidence_naming(organism, ai_score):
         return f"{prefix}{parts[0]} sp."
     return organism
 
-with open(os.path.expanduser("/maps/filter_list.txt")) as f:
+with open(os.path.expanduser(f"{MAPS_HOME}/filter_list.txt")) as f:
     EXCLUDE = [line.strip().lower() for line in f if line.strip()]
 
 PATHOGEN_SCORES = {

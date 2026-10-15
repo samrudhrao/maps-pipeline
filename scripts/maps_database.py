@@ -30,7 +30,7 @@ from datetime import datetime
 
 # Path to SQLite database file
 # This file stores all validated sample results for concordance tracking
-DB_PATH = os.path.expanduser("/maps/maps_results.db")
+DB_PATH = os.path.expanduser(f"{MAPS_HOME}/maps_results.db")
 
 def init_db():
     """
