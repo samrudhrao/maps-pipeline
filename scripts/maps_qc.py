@@ -82,11 +82,15 @@ def qc_check(sample, outdir, platform='illumina'):
         q30_flag = "✓" if q30_rate >= 70 else "⚠"
         print(f"  {q30_flag} Q30 rate: {q30_rate:.1f}% (informational)")
     if duplication_pct > 0:
-        dup_flag = "✓" if duplication_pct <= 30 else "⚠"
+        dup_flag = "✓" if duplication_pct <= 80 else "⚠"
         print(f"  {dup_flag} Duplication: {duplication_pct:.1f}% (informational)")
+        if duplication_pct > 80:
+            print(f"  ⚠ High duplication rate — possible PCR artifact or low complexity library")
     if insert_size > 0:
-        ins_flag = "✓" if insert_size >= 50 else "⚠"
+        ins_flag = "✓" if insert_size >= 100 else "⚠"
         print(f"  {ins_flag} Insert size: {insert_size}bp (informational)")
+        if insert_size < 100:
+            print(f"  ⚠ Short insert size — possible DNA degradation")
 
     # Q30 threshold depends on platform
     # Illumina: hard fail below 50% (platform standard)
