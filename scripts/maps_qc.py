@@ -27,6 +27,7 @@ def qc_check(sample, outdir, platform='illumina'):
     classified      = 0
     duplication_pct = 0.0
     q30_rate        = 0.0
+    q20_rate        = 0.0
     insert_size     = 0
 
     if os.path.exists(human_report):
@@ -50,6 +51,7 @@ def qc_check(sample, outdir, platform='illumina'):
             summary = fastp.get("summary", {})
             after   = summary.get("after_filtering", {})
             q30_rate        = after.get("q30_rate", 0.0) * 100
+            q20_rate        = after.get("q20_rate", 0.0) * 100
             duplication_pct = fastp.get("duplication", {}).get("rate", 0.0) * 100
             insert_size     = fastp.get("insert_size", {}).get("peak", 0)
         except:
@@ -78,9 +80,14 @@ def qc_check(sample, outdir, platform='illumina'):
         print(f"  {icon} {msg}")
 
     # Informational metrics — logged but not pass/fail
-    if q30_rate > 0:
-        q30_flag = "✓" if q30_rate >= 70 else "⚠"
-        print(f"  {q30_flag} Q30 rate: {q30_rate:.1f}% (informational)")
+    if platform == "iontorrent":
+        if q20_rate > 0:
+            q20_flag = "✓" if q20_rate >= 70 else "⚠"
+            print(f"  {q20_flag} Q20 rate: {q20_rate:.1f}% (Ion Torrent platform metric)")
+    else:
+        if q30_rate > 0:
+            q30_flag = "✓" if q30_rate >= 70 else "⚠"
+            print(f"  {q30_flag} Q30 rate: {q30_rate:.1f}% (informational)")
     if duplication_pct > 0:
         dup_flag = "✓" if duplication_pct <= 80 else "⚠"
         print(f"  {dup_flag} Duplication: {duplication_pct:.1f}% (informational)")
@@ -92,17 +99,23 @@ def qc_check(sample, outdir, platform='illumina'):
         if insert_size < 100:
             print(f"  ⚠ Short insert size — possible DNA degradation")
 
-    # Q30 threshold depends on platform
-    # Illumina: hard fail below 50% (platform standard)
-    # Ion Torrent: hard fail below 5% (platform naturally lower Q30)
-    q30_min = 5.0 if platform == "iontorrent" else 50.0
-    if q30_rate > 0 and q30_rate < q30_min:
-        passed = False
-        status = "FAIL"
-        print(f"\n  ✗ Q30 rate critically low ({q30_rate:.1f}%) — sequencing quality insufficient for reliable results")
-    elif q30_rate > 0 and q30_rate < 70:
-        if platform != "iontorrent":
-            print(f"\n  ⚠ Q30 rate low ({q30_rate:.1f}%) — results should be interpreted with caution")
+    # Quality threshold depends on platform — per APHL guidelines
+    # Illumina: hard fail below 50% Q30 (platform standard)
+    # Ion Torrent: hard fail below 70% Q20 (APHL recommends majority of bases above Q20)
+    if platform == "iontorrent":
+        if q20_rate > 0 and q20_rate < 70.0:
+            passed = False
+            status = "FAIL"
+            print(f"\n  \u2717 Q20 rate too low ({q20_rate:.1f}%) — below Ion Torrent minimum threshold (70% Q20)")
+        elif q20_rate > 0:
+            print(f"\n  \u2713 Q20 rate: {q20_rate:.1f}% — acceptable for Ion Torrent platform")
+    else:
+        if q30_rate > 0 and q30_rate < 50.0:
+            passed = False
+            status = "FAIL"
+            print(f"\n  \u2717 Q30 rate critically low ({q30_rate:.1f}%) — below Illumina minimum threshold (50%)")
+        elif q30_rate > 0 and q30_rate < 70:
+            print(f"\n  \u26a0 Q30 rate low ({q30_rate:.1f}%) — results should be interpreted with caution")
 
     # Reprint status header with correct pass/fail
     print(f"\n  Final QC status: {status}")
@@ -117,6 +130,7 @@ def qc_check(sample, outdir, platform='illumina'):
         "human_pct":        round(human_pct, 1),
         "microbial_reads":  int(microbial_reads),
         "q30_rate":         round(q30_rate, 1),
+        "q20_rate":         round(q20_rate, 1),
         "duplication_pct":  round(duplication_pct, 1),
         "insert_size":      insert_size,
         "checks":           {k: v[0] for k, v in checks.items()},
