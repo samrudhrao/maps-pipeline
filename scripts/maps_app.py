@@ -1,7 +1,6 @@
 import streamlit as st
 import os as _os
 import csv
-import streamlit_authenticator as stauth
 from datetime import datetime
 
 MAPS_HOME = "/maps" if _os.path.exists("/maps/kraken2_db") else _os.path.expanduser("~/maps")
@@ -11,23 +10,6 @@ import os
 import json
 import pandas as pd
 import shutil
-
-# ── Authentication ─────────────────────────────────────────────────────
-AUTH_CONFIG = {
-    "credentials": {
-        "usernames": {
-            "bswestcampus": {
-                "name": "bswestcampus",
-                "password": "$2b$12$xo9e2SefEiymz93tAyWhKeo4KpXcugb.AIutw7P2vyTWwbPImJZG."
-            }
-        }
-    },
-    "cookie": {
-        "name": "maps_auth",
-        "key": "maps_secret_key_bsw",
-        "expiry_days": 0
-    }
-}
 
 # ── Login audit log ────────────────────────────────────────────────────
 LOG_PATH = _os.path.join(MAPS_HOME, "login_audit.csv")
@@ -44,41 +26,46 @@ def log_login(username, success):
             "SUCCESS" if success else "FAILED"
         ])
 
-authenticator = stauth.Authenticate(
-    AUTH_CONFIG["credentials"],
-    AUTH_CONFIG["cookie"]["name"],
-    AUTH_CONFIG["cookie"]["key"],
-    AUTH_CONFIG["cookie"]["expiry_days"]
-)
+# ── Simple session-based authentication ───────────────────────────────
+VALID_USERNAME = "bswestcampus"
+VALID_PASSWORD = "maps"
 
-authenticator.login(location="main")
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "user_initials" not in st.session_state:
+    st.session_state.user_initials = ""
 
-if st.session_state.get("authentication_status") == False:
-    st.error("Incorrect username or password")
-    log_login(st.session_state.get("username") or "unknown", False)
+if not st.session_state.authenticated:
+    st.markdown("<h3 style='color:#003087;'>🔒 MAPS Login</h3>", unsafe_allow_html=True)
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if username == VALID_USERNAME and password == VALID_PASSWORD:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Incorrect username or password")
+            log_login(username or "unknown", False)
     st.stop()
-elif st.session_state.get("authentication_status") is None:
-    st.warning("Please enter your username and password")
+
+if st.session_state.authenticated and not st.session_state.user_initials:
+    st.markdown("<h3 style='color:#003087;'>Welcome — Please enter your initials</h3>", unsafe_allow_html=True)
+    initials_input = st.text_input("Your initials (e.g. SR, JD)", max_chars=5)
+    if st.button("Continue"):
+        if initials_input.strip():
+            st.session_state.user_initials = initials_input.strip().upper()
+            log_login(f"{VALID_USERNAME} [{st.session_state.user_initials}]", True)
+            st.rerun()
+        else:
+            st.warning("Please enter your initials")
     st.stop()
-else:
-    # Ask for initials after login
-    if "user_initials" not in st.session_state:
-        st.session_state.user_initials = ""
-    
-    if not st.session_state.user_initials:
-        st.info("Please enter your initials to continue")
-        initials_input = st.text_input("Your initials (e.g. SR, JD)", max_chars=5)
-        if st.button("Continue"):
-            if initials_input.strip():
-                st.session_state.user_initials = initials_input.strip().upper()
-                log_login(f"{st.session_state.get('username')} [{st.session_state.user_initials}]", True)
-                st.rerun()
-            else:
-                st.warning("Please enter your initials")
-        st.stop()
-    
-    authenticator.logout(location="sidebar")
-    st.sidebar.caption(f"Logged in as: {st.session_state.user_initials}")
+
+if st.sidebar.button("Logout"):
+    st.session_state.authenticated = False
+    st.session_state.user_initials = ""
+    st.rerun()
+st.sidebar.caption(f"Logged in as: {st.session_state.user_initials}")
+
 
 st.set_page_config(
     page_title="MAPS — Metagenomic Abundance and Pathogen Scoring",
