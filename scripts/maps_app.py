@@ -25,7 +25,7 @@ AUTH_CONFIG = {
     "cookie": {
         "name": "maps_auth",
         "key": "maps_secret_key_bsw",
-        "expiry_days": 1
+        "expiry_days": 0
     }
 }
 
