@@ -1,12 +1,84 @@
 import streamlit as st
 import os as _os
+import csv
+import streamlit_authenticator as stauth
+from datetime import datetime
+
 MAPS_HOME = "/maps" if _os.path.exists("/maps/kraken2_db") else _os.path.expanduser("~/maps")
+
 import subprocess
 import os
 import json
 import pandas as pd
 import shutil
-from datetime import datetime
+
+# ── Authentication ─────────────────────────────────────────────────────
+AUTH_CONFIG = {
+    "credentials": {
+        "usernames": {
+            "bswestcampus": {
+                "name": "bswestcampus",
+                "password": "$2b$12$xo9e2SefEiymz93tAyWhKeo4KpXcugb.AIutw7P2vyTWwbPImJZG."
+            }
+        }
+    },
+    "cookie": {
+        "name": "maps_auth",
+        "key": "maps_secret_key_bsw",
+        "expiry_days": 1
+    }
+}
+
+# ── Login audit log ────────────────────────────────────────────────────
+LOG_PATH = _os.path.join(MAPS_HOME, "login_audit.csv")
+
+def log_login(username, success):
+    file_exists = _os.path.exists(LOG_PATH)
+    with open(LOG_PATH, "a", newline="") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(["timestamp", "username", "status"])
+        writer.writerow([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            username,
+            "SUCCESS" if success else "FAILED"
+        ])
+
+authenticator = stauth.Authenticate(
+    AUTH_CONFIG["credentials"],
+    AUTH_CONFIG["cookie"]["name"],
+    AUTH_CONFIG["cookie"]["key"],
+    AUTH_CONFIG["cookie"]["expiry_days"]
+)
+
+authenticator.login(location="main")
+
+if st.session_state.get("authentication_status") == False:
+    st.error("Incorrect username or password")
+    log_login(st.session_state.get("username") or "unknown", False)
+    st.stop()
+elif st.session_state.get("authentication_status") is None:
+    st.warning("Please enter your username and password")
+    st.stop()
+else:
+    # Ask for initials after login
+    if "user_initials" not in st.session_state:
+        st.session_state.user_initials = ""
+    
+    if not st.session_state.user_initials:
+        st.info("Please enter your initials to continue")
+        initials_input = st.text_input("Your initials (e.g. SR, JD)", max_chars=5)
+        if st.button("Continue"):
+            if initials_input.strip():
+                st.session_state.user_initials = initials_input.strip().upper()
+                log_login(f"{st.session_state.get('username')} [{st.session_state.user_initials}]", True)
+                st.rerun()
+            else:
+                st.warning("Please enter your initials")
+        st.stop()
+    
+    authenticator.logout(location="sidebar")
+    st.sidebar.caption(f"Logged in as: {st.session_state.user_initials}")
 
 st.set_page_config(
     page_title="MAPS — Metagenomic Abundance and Pathogen Scoring",
