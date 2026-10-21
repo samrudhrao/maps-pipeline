@@ -176,3 +176,19 @@ Developer: Samrudh Rao, Scientist I
 ## Status
 
 Currently under clinical validation. Not yet FDA cleared. For research use only.
+
+## Login Audit Log
+
+The login audit log (`login_audit.csv`) is not tracked by GitHub — it is stored locally on the server running MAPS.
+
+**To set up on a new installation:**
+```bash
+cp login_audit_template.csv login_audit.csv
+```
+
+Then mount it when running Docker:
+```bash
+-v ~/maps/login_audit.csv:/maps/login_audit.csv
+```
+
+Every login will be recorded with timestamp, username, and initials.
