@@ -135,3 +135,91 @@ roseburia hominis
 candidatus annandia
 sedimentibacter
 serratia odorifera
+methylobacterium
+methylobacterium bullatum
+methylobacterium organophilum
+sphingomonas
+sphingobium
+novosphingobium
+brevundimonas
+caulobacter
+herbaspirillum
+janthinobacterium
+acidovorax
+cupriavidus
+ochrobactrum
+rhizobium
+afipia
+bosea
+devosia
+burkholdera
+paracoccus
+roseomonas
+pedomicrobium
+sphingopyxis
+mycolicibacter
+actinomyces oris
+agrobacterium
+variovorax
+pelomonas
+duganella
+massilia
+polaromonas
+undibacterium
+leifsonia
+xanthomonas
+sulfuritalea
+schlegelella
+limnobacter
+methyloversatilis
+methylophilus
+azospira
+azoarcus
+oxalobacter
+curvibacter
+delftia
+burkholderiales
+pelagibacter
+candidatus pelagibacter
+alphaproteobacteria
+betaproteobacteria
+gammaproteobacteria
+geodermatophilus
+janibacter
+kocuria
+microlunatus
+patulibacter
+tsukamurella
+aeromicrobium
+arthrobacter
+beutenbergia
+curtobacterium
+dietzia
+brevibacterium
+actinotignum
+acidovorax
+aquabacterium
+asticcacaulis
+aurantimonas
+beijerinckia
+craurococcus
+hoeflea
+pedomicrobium
+phyllobacterium
+phenylobacterium
+tepidanaerobacter
+alkaliphilus
+anaerobranca
+natranaerobius
+natranaerobacter
+halonatronum
+oleispira
+alcanivorax
+marinobacter
+thalassolituus
+neptuniibacter
+olleya
+glaciecola
+colwellia
+shewanella loihica
+shewanella putrefaciens
