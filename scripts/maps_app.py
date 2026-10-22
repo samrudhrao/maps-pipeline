@@ -558,7 +558,7 @@ with tab1:
                         st.download_button(
                             "🖨️ Download PDF Report",
                             f.read(),
-                            file_name=f"{sample_name}_clinical_report.pdf",
+                            file_name=f"MAPS_{sample_name}_{specimen_type}_{dt.now().strftime('%Y-%m-%d_%H-%M')}.pdf",
                             mime="application/pdf",
                             use_container_width=True
                         )
