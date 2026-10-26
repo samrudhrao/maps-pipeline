@@ -34,7 +34,7 @@ ENV PATH="/opt/mlst/bin:$PATH"
 # ─── Python packages ──────────────────────────────────────────────────
 RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed \
     pandas numpy scikit-learn xgboost shap \
-    joblib streamlit biopython streamlit-authenticator
+    joblib streamlit biopython streamlit-authenticator reportlab
 
 # ─── MAPS pipeline ────────────────────────────────────────────────────
 WORKDIR /maps
