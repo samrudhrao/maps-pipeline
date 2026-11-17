@@ -129,6 +129,7 @@ python3 $MAPS_HOME/scripts/maps_qc.py $SAMPLE $OUTDIR $PLATFORM
 QC_STATUS=$(python3 -c "import json; d=json.load(open('$OUTDIR/${SAMPLE}_qc.json')); print(d['status'])" 2>/dev/null)
 if [ "$QC_STATUS" = "FAIL" ]; then
     echo "  ✗ QC FAILED — stopping pipeline"
+    python3 $MAPS_HOME/scripts/maps_qc_report.py $SAMPLE $OUTDIR $SPECIMEN_TYPE || echo "  (QC PDF report could not be generated)"
     echo "  Check $OUTDIR/${SAMPLE}_qc.json for details"
     exit 1
 fi

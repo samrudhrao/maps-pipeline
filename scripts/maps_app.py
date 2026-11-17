@@ -22,6 +22,15 @@ try:
 except ImportError:
     REPORTLAB_AVAILABLE = False
 
+import sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+try:
+    from maps_qc_report import build_report as build_qc_failure_report
+    from maps_qc_report import metric_rows as qc_metric_rows
+except Exception:
+    build_qc_failure_report = None
+    qc_metric_rows = None
+
 def generate_pdf_report(sample_name, outdir, summary, qc, run_start_time):
     if not REPORTLAB_AVAILABLE:
         return None
@@ -406,9 +415,12 @@ with tab1:
         ]
 
         try:
+            _maps_env = os.environ.copy()
+            _maps_env["MAPS_USER"] = str(st.session_state.get("user_initials", "N/A"))
+            _maps_env["MAPS_RUN_START"] = str(st.session_state.get("run_start_time", "N/A"))
             process = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT, text=True, bufsize=1
+                stderr=subprocess.STDOUT, text=True, bufsize=1, env=_maps_env
             )
             for line in process.stdout:
                 line = line.strip()
@@ -428,14 +440,54 @@ with tab1:
         if failed:
             progress_bar.progress(100)
             current_step.empty()
-            st.error(f"❌ Pipeline stopped at QC: {fail_reason}")
-            st.warning("""
-            Sample failed quality control. Common reasons:
-            - Insufficient reads (need ≥ 50,000)
-            - Too much human DNA (> 90%)
-            - Low Q30 rate (< 50%) — poor sequencing quality
-            - Too few microbial reads (< 1,000)
-            """)
+            qc_path = f"{outdir}/{sample_name}_qc.json"
+            qc_fail = {}
+            if os.path.exists(qc_path):
+                try:
+                    with open(qc_path) as f:
+                        qc_fail = json.load(f)
+                except Exception:
+                    qc_fail = {}
+            failures = qc_fail.get("failures") or []
+            if failures:
+                n_fail = len(failures)
+                st.error(f"❌ QC FAILED — {n_fail} parameter{'s' if n_fail != 1 else ''} failed. "
+                         f"Pipeline stopped at QC validation; no results generated.")
+                for fl in failures:
+                    st.error(f"**{fl['parameter']}:** {fl['value']} (required {fl['threshold']}) — {fl.get('reason', '')}")
+            else:
+                st.error(f"❌ Pipeline stopped at QC: {fail_reason}")
+            for w in qc_fail.get("warnings") or []:
+                st.warning(f"⚠️ **{w['parameter']}:** {w['value']} (expected {w['threshold']}) — {w.get('reason', '')}")
+            if qc_fail and qc_metric_rows:
+                st.markdown("<h4 style='color:#003087;'>All QC metrics</h4>", unsafe_allow_html=True)
+                st.table(pd.DataFrame(qc_metric_rows(qc_fail),
+                                      columns=["Parameter", "Result", "Required", "Status", "Type"]))
+
+            # QC failure PDF report
+            qc_pdf = f"{outdir}/{sample_name}_qc_failure_report.pdf"
+            if qc_fail and not os.path.exists(qc_pdf) and build_qc_failure_report:
+                try:
+                    build_qc_failure_report(sample_name, outdir, specimen_type,
+                                            user=str(st.session_state.get("user_initials", "N/A")),
+                                            run_start=str(st.session_state.get("run_start_time", "N/A")))
+                except Exception as e:
+                    st.warning(f"Could not create the QC failure PDF: {e}")
+            if os.path.exists(qc_pdf):
+                with open(qc_pdf, "rb") as f:
+                    pdf_bytes = f.read()
+                pdf_name = f"MAPS_QC_FAIL_{sample_name}_{specimen_type}_{dt.now().strftime('%Y-%m-%d_%H-%M')}.pdf"
+                saved_dir = f"{MAPS_HOME}/qc_reports"
+                if os.path.isdir(saved_dir):
+                    try:
+                        with open(f"{saved_dir}/{pdf_name}", "wb") as f:
+                            f.write(pdf_bytes)
+                        st.caption(f"📁 Copy saved to ~/maps/qc_reports/{pdf_name}")
+                    except Exception as e:
+                        st.caption(f"Could not save a copy to qc_reports: {e}")
+                st.download_button("🖨️ Download QC Failure Report (PDF)", pdf_bytes,
+                                   file_name=pdf_name, mime="application/pdf",
+                                   use_container_width=True)
 
         elif os.path.exists(f"{outdir}/{sample_name}_summary.json"):
             progress_bar.progress(100)
